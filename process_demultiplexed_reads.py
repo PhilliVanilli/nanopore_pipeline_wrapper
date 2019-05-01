@@ -76,7 +76,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
     # gather all fastq's into one file and all sequencing_summary.txt's into one file
     print(f"\nrunning: artic gather to collect all fastq files into one file")
     gather_cmd = f"artic gather --guppy --min-length 100 --max-length 700 --prefix {run_name} {fastq_dir}"
-    #try_except_exit_on_fail(gather_cmd)
+    try_except_exit_on_fail(gather_cmd)
 
     # demultiplex with porchop
     print(f"\nrunning: porechop demultiplexing\n")
@@ -94,7 +94,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
                       f"--barcode_dir {demultipled_folder} " \
                       f"> {str(master_reads_file)}.demultiplexreport.txt"
 
-    #try_except_exit_on_fail(demultiplex_cmd)
+    try_except_exit_on_fail(demultiplex_cmd)
 
     for file in list(demultipled_folder.glob("*.fastq")):
         path = file.parents[0]
@@ -107,7 +107,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
     # index concatenated fastq with nanopolish
     print(f"\nrunning: nanopolish index on fast5/fastq files\n")
     nanopolish_index_cmd = f"nanopolish index -d {fast5_dir} {master_reads_file}"
-    #try_except_exit_on_fail(nanopolish_index_cmd)
+    try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
     sample_names_df = pd.read_csv(sample_names, sep=None, engine="python")
@@ -144,7 +144,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
         bam_file_sorted = pathlib.Path(sample_folder, sample_name + ".sorted.bam")
         trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.bam")
         rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
-        vcf_file = pathlib.Path(sample_folder, sample_name + ".vcf")
+        vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
         consensus_file = pathlib.Path(sample_folder, sample_name + "_consensus.fasta")
 
         os.chdir(sample_folder)
@@ -188,36 +188,28 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling\n")
-        nanopolish_cmd = f"nanopolish variants --min-flanking-sequence 10 --fix-homopolymers --max-rounds=100 " \
-            f"--progress -t 4 --min-flanking-sequence=30 --ploidy 1 " \
+        nanopolish_cmd_v11 = f"nanopolish variants " \
+            f"--fix-homopolymers --consensus --outfile {vcf_file} " \
+            f"-w '{ref_name}:{ref_start}-{ref_end}' --min-flanking-sequence=30 " \
+            f"--threads 4 --min-flanking-sequence=30 --ploidy 1 " \
+            f"--reads {master_reads_file} --bam {trimmed_bam_file} --genome {chosen_ref_scheme} " \
+
+        nanopolish_cmd_v09 = f"nanopolish variants --min-flanking-sequence 10 --fix-homopolymers" \
+            f"--progress -t 4 --min-flanking-sequence=30 --ploidy 1 --snps" \
             f"--reads {master_reads_file} -o {vcf_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} " \
-            f"-w '{ref_name}:{ref_start}-{ref_end}' --consensus {consensus_file}"
-        run = try_except_continue_on_fail(nanopolish_cmd)
-        if not run:
-            continue
+            f"-w '{ref_name}:{ref_start}-{ref_end}'"
 
-        # copy renamed trimmed bam file
-        shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
-
-        # extract variant calls
-        print(f"\nrunning: extracting variant calls to tab file\n")
-        extract_vcf = f"vcfextract {sample_name} > {sample_name}.variants.tab"
-        run = try_except_continue_on_fail(extract_vcf)
+        run = try_except_continue_on_fail(nanopolish_cmd_v11)
         if not run:
             continue
 
         # make consensus
         print(f"\nrunning: making consensus sequence from bam and variant call (vcf) files\n")
-        consensus_cmd = f"margin_cons {chosen_ref_scheme} {vcf_file} {rename_trimmed_bam_file} > " \
-            f"{sample_name}_their_consensus.fasta"
+        consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > {consensus_file}"
         run = try_except_continue_on_fail(consensus_cmd)
         if not run:
             continue
 
-        sed_cmd = f"sed -i '1d' {sample_name}_their_consensus.fasta"
-        run = try_except_continue_on_fail(sed_cmd)
-        if not run:
-            continue
         print(f"Completed processing sample: {sample_name}")
         input("enter")
     print("sample processing completed")
