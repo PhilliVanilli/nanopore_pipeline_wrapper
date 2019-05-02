@@ -76,10 +76,10 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
     # gather all fastq's into one file and all sequencing_summary.txt's into one file
     print(f"\nrunning: artic gather to collect all fastq files into one file")
     gather_cmd = f"artic gather --guppy --min-length 100 --max-length 700 --prefix {run_name} {fastq_dir}"
-    try_except_exit_on_fail(gather_cmd)
+    # try_except_exit_on_fail(gather_cmd)
 
     # demultiplex with porchop
-    print(f"\nrunning: porechop demultiplexing\n")
+    print(f"\nrunning: porechop demultiplexing")
     master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
     if not master_reads_file.is_file():
         print(f"could not find the concatenated fastq, {master_reads_file}")
@@ -94,7 +94,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
                       f"--barcode_dir {demultipled_folder} " \
                       f"> {str(master_reads_file)}.demultiplexreport.txt"
 
-    try_except_exit_on_fail(demultiplex_cmd)
+    # try_except_exit_on_fail(demultiplex_cmd)
 
     for file in list(demultipled_folder.glob("*.fastq")):
         path = file.parents[0]
@@ -105,9 +105,9 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
             os.rename(str(file), new_file)
 
     # index concatenated fastq with nanopolish
-    print(f"\nrunning: nanopolish index on fast5/fastq files\n")
+    print(f"\nrunning: nanopolish index on fast5/fastq files")
     nanopolish_index_cmd = f"nanopolish index -d {fast5_dir} {master_reads_file}"
-    try_except_exit_on_fail(nanopolish_index_cmd)
+    # try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
     sample_names_df = pd.read_csv(sample_names, sep=None, engine="python")
@@ -145,40 +145,41 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
         trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.bam")
         rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
         vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
-        consensus_file = pathlib.Path(sample_folder, sample_name + "_consensus.fasta")
-
+        nanopolish_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_nanopolish.fasta")
+        artic_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_artic.fasta")
+        bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
         os.chdir(sample_folder)
 
         # run read mapping using bwa
-        print(f"\nrunning: bwa read mapping\n")
+        print(f"\nrunning: bwa read mapping")
         bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
         run = try_except_continue_on_fail(bwa_cmd)
         if not run:
             continue
 
         # convert sam to bam
-        print(f"\nrunning: sam to bam conversion\n")
+        print(f"\nrunning: sam to bam conversion")
         sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
         run = try_except_continue_on_fail(sam_bam_cmd)
         if not run:
             continue
 
         # sort bam file
-        print(f"\nrunning: sorting bam file\n")
+        print(f"\nrunning: sorting bam file")
         sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
         run = try_except_continue_on_fail(sort_sam_cmd)
         if not run:
             continue
 
         # index bam file for bamclipper
-        print(f"\nrunning: indexing bam file\n")
+        print(f"\nrunning: indexing bam file")
         index_bam_cmd = f"samtools index {bam_file_sorted}"
         run = try_except_continue_on_fail(index_bam_cmd)
         if not run:
             continue
 
         # remove primer sequences with bamclipper
-        print(f"\nrunning: trim primer sequences from bam file\n")
+        print(f"\nrunning: trim primer sequences from bam file")
 
         trim_primer = f"bamclipper.sh -b {bam_file_sorted} " \
             f"-p {chosen_ref_scheme_bed_file} -n 4 -u 1 -d 1"
@@ -187,7 +188,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
             continue
 
         # run nanopolish
-        print(f"\nrunning: nanopolish variant calling\n")
+        print(f"\nrunning: nanopolish variant calling")
         nanopolish_cmd_v11 = f"nanopolish variants " \
             f"--fix-homopolymers --consensus --outfile {vcf_file} " \
             f"-w '{ref_name}:{ref_start}-{ref_end}' --min-flanking-sequence=30 " \
@@ -204,19 +205,25 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
             continue
 
         # make consensus
-        print(f"\nrunning: making consensus sequence from bam and variant call (vcf) files\n")
-        consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > {consensus_file}"
+        print(f"\nrunning: making consensus sequence from bam and variant call (vcf) files")
+        consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > {nanopolish_cons_file}"
         run = try_except_continue_on_fail(consensus_cmd)
         if not run:
             continue
 
+        # make bcftools consensus
+        bcv_cmd = f"bcftools consensus {chosen_ref_scheme} {vcf_file} > {bcftools_cons_file}"
+
+        # make artic-ebov consensus
+        cons_cmd = f"margin_cons {chosen_ref_scheme} {vcf_file} {rename_trimmed_bam_file} > {artic_cons_file}"
+
         print(f"Completed processing sample: {sample_name}")
-        input("enter")
+
     print("sample processing completed")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process indexed, demultiplexed nanopore reads to consensus sequences",
+    parser = argparse.ArgumentParser(description="Process raw nanopore reads to consensus sequences",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-in", "--project_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the directory containing the 'fast5' and 'fastq' folders ", required=True)
