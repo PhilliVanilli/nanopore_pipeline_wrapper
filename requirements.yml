@@ -1,0 +1,23 @@
+name: nanop
+channels:
+  - bioconda
+  - etetoolkit # included because bioconda phyml is broken
+  - conda-forge
+  - defaults
+dependencies:
+  - biopython
+  - nanopolish
+  - porechop
+  - bamclipper
+  - PyVCF
+  - pycoQC
+  - pandas
+  - samtools
+  - bcftools
+  - bwa
+  - clint
+  - pysam
+  - ete3
+  - mafft
+
+
