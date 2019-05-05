@@ -243,7 +243,6 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             continue
 
         # make bcftools consensus
-
         min_base_qual = 30 # default=13
         p_val_of_variant = 0.2 # default=0.5
 
