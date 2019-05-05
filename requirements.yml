@@ -9,7 +9,7 @@ dependencies:
   - nanopolish
   - porechop
   - bamclipper
-  - PyVCF
+  - pyvcf
   - pycoQC
   - pandas
   - samtools
@@ -19,5 +19,5 @@ dependencies:
   - pysam
   - ete3
   - mafft
-
+  - matplotlib
 
