@@ -250,7 +250,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} {trimmed_bam_file} " \
             f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -mv -Oz -o {bcftools_vcf_file}"
         bcf_index_cmd = f"bcftools index {bcftools_vcf_file}"
-        bcf_cons_cmd =f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file}"
+        bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file}"
         run = try_except_continue_on_fail(bcf_vcf_cmd)
         if not run:
             continue
