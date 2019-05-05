@@ -107,7 +107,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     print(f"\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     # gather all fastq's into one file and all sequencing_summary.txt's into one file
-    print(f"\nrunning: artic gather to collect all fastq files into one file")
+    print(f"\nrunning: collecting all fastq files into one file")
     summary_file_path = gather_fastqs(fastq_dir, run_name, max_len, min_len)
     if not summary_file_path:
         print("gathering fastq files failed, concatenated fastq file was not found")
@@ -129,7 +129,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
                       f"--barcode_dir {demultipled_folder} " \
                       f"> {master_reads_file}.demultiplexreport.txt"
 
-    try_except_exit_on_fail(demultiplex_cmd)
+    #try_except_exit_on_fail(demultiplex_cmd)
 
     # add run name to each demultiplexed file
     for file in list(demultipled_folder.glob("*.fastq")):
@@ -143,7 +143,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     # index concatenated fastq with nanopolish
     print(f"\nrunning: nanopolish index on fast5/fastq files")
     nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file}"
-    try_except_exit_on_fail(nanopolish_index_cmd)
+    # try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
     sample_names_df = pd.read_csv(sample_names, sep=None, engine="python")
@@ -182,46 +182,46 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
         vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
         nanopolish_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_nanopolish.fasta")
-        artic_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_artic.fasta")
-        bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
+
+        # bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
         os.chdir(sample_folder)
 
         # run read mapping using bwa
         print(f"\nrunning: bwa read mapping")
         bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
-        run = try_except_continue_on_fail(bwa_cmd)
-        if not run:
-            continue
+        # run = try_except_continue_on_fail(bwa_cmd)
+        #if not run:
+        #    continue
 
         # convert sam to bam
         print(f"\nrunning: sam to bam conversion")
         sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
-        run = try_except_continue_on_fail(sam_bam_cmd)
-        if not run:
-            continue
+        #run = try_except_continue_on_fail(sam_bam_cmd)
+        #if not run:
+        #    continue
 
         # sort bam file
         print(f"\nrunning: sorting bam file")
         sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
-        run = try_except_continue_on_fail(sort_sam_cmd)
-        if not run:
-            continue
+        #run = try_except_continue_on_fail(sort_sam_cmd)
+        #if not run:
+        #    continue
 
         # index bam file for bamclipper
         print(f"\nrunning: indexing bam file")
         index_bam_cmd = f"samtools index {bam_file_sorted}"
-        run = try_except_continue_on_fail(index_bam_cmd)
-        if not run:
-            continue
+        #run = try_except_continue_on_fail(index_bam_cmd)
+        #if not run:
+        #    continue
 
         # remove primer sequences with bamclipper
         print(f"\nrunning: trim primer sequences from bam file")
 
         trim_primer = f"bamclipper.sh -b {bam_file_sorted} " \
             f"-p {chosen_ref_scheme_bed_file} -n 4 -u 1 -d 1"
-        run = try_except_continue_on_fail(trim_primer)
-        if not run:
-            continue
+        #run = try_except_continue_on_fail(trim_primer)
+        #if not run:
+        #    continue
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
@@ -230,23 +230,34 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} "
         print(f'{ref_name}:{ref_start}-{ref_end}')
         print(nanopolish_cmd_v11)
-        run = try_except_continue_on_fail(nanopolish_cmd_v11)
-        if not run:
-            continue
+        #run = try_except_continue_on_fail(nanopolish_cmd_v11)
+        #if not run:
+        #    continue
 
         # make consensus
         print(f"\nrunning: making consensus sequence from bam and variant call (vcf) files")
-        consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > {nanopolish_cons_file}"
-        run = try_except_continue_on_fail(consensus_cmd)
-        if not run:
-            continue
+        #consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > {nanopolish_cons_file}"
+        #run = try_except_continue_on_fail(consensus_cmd)
+        #if not run:
+        #    continue
 
         # make bcftools consensus
-        bcf_cmd = f"bcftools consensus {chosen_ref_scheme} {vcf_file} > {bcftools_cons_file}"
+        # bcf_cmd = f"bcftools consensus {chosen_ref_scheme} {vcf_file} > {bcftools_cons_file}"
 
         # make artic-ebov consensus
-        cons_cmd = f"python {script_folder}/margin_cons.py {chosen_ref_scheme} {vcf_file} {rename_trimmed_bam_file} > {artic_cons_file}"
-        run = try_except_continue_on_fail(cons_cmd)
+        #shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
+        cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
+        cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
+            f"-n {sample_name} -d 10 -q 30 "
+        #run = try_except_continue_on_fail(cons_cmd)
+        #if not run:
+        #    continue
+
+        # plot depth and quality for sample
+        plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
+        plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
+            f"-n {sample_name}"
+        run = try_except_continue_on_fail(plot_cmd)
         if not run:
             continue
 
@@ -256,12 +267,9 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process raw nanopore reads to consensus sequences. run example: "
-    "python /home/phil/programs/nanopore_pipeline_wrapper/step_2_process_basecalled_reads.py "
-                                                 "-in /media/phil/Samsung_T5/20190410_WGS_CHIKV_EXP1/ "
-                                                 "-s /media/phil/Samsung_T5/20190410_WGS_CHIKV_EXP1/sample_names.csv "
-                                                 "-r ChikAsianECSA_V1 ",
+    parser = argparse.ArgumentParser(description="Process raw nanopore reads to fasta consensus sequences",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
     parser.add_argument("-in", "--project_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the directory containing the 'fast5' and 'fastq' folders ", required=True)
     parser.add_argument("-s", "--sample_names", default=argparse.SUPPRESS, type=str,
