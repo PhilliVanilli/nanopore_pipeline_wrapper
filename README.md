@@ -17,6 +17,9 @@ Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
 # Step 4 activate the conda env
 `source activate nanop`
 
+you might need to install pyvcf manually
+`conda install -c bioconda pyvcf`
+
 # Running the pipeline:
 
 ## make QCplots

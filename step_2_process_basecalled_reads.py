@@ -129,7 +129,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
                       f"--barcode_dir {demultipled_folder} " \
                       f"> {master_reads_file}.demultiplexreport.txt"
 
-    #try_except_exit_on_fail(demultiplex_cmd)
+    try_except_exit_on_fail(demultiplex_cmd)
 
     # add run name to each demultiplexed file
     for file in list(demultipled_folder.glob("*.fastq")):
@@ -143,7 +143,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     # index concatenated fastq with nanopolish
     print(f"\nrunning: nanopolish index on fast5/fastq files")
     nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file}"
-    # try_except_exit_on_fail(nanopolish_index_cmd)
+    try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
     sample_names_df = pd.read_csv(sample_names, sep=None, engine="python")
@@ -182,76 +182,88 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
         vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
         nanopolish_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_nanopolish.fasta")
-
-        # bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
+        bcftools_vcf_file = pathlib.Path(sample_folder, sample_name + "_bcftools.vcf")
+        bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
         os.chdir(sample_folder)
 
         # run read mapping using bwa
         print(f"\nrunning: bwa read mapping")
         bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
-        # run = try_except_continue_on_fail(bwa_cmd)
-        #if not run:
-        #    continue
+        run = try_except_continue_on_fail(bwa_cmd)
+        if not run:
+            continue
 
         # convert sam to bam
         print(f"\nrunning: sam to bam conversion")
         sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
-        #run = try_except_continue_on_fail(sam_bam_cmd)
-        #if not run:
-        #    continue
+        run = try_except_continue_on_fail(sam_bam_cmd)
+        if not run:
+            continue
 
         # sort bam file
         print(f"\nrunning: sorting bam file")
         sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
-        #run = try_except_continue_on_fail(sort_sam_cmd)
-        #if not run:
-        #    continue
+        run = try_except_continue_on_fail(sort_sam_cmd)
+        if not run:
+            continue
 
         # index bam file for bamclipper
         print(f"\nrunning: indexing bam file")
         index_bam_cmd = f"samtools index {bam_file_sorted}"
-        #run = try_except_continue_on_fail(index_bam_cmd)
-        #if not run:
-        #    continue
+        run = try_except_continue_on_fail(index_bam_cmd)
+        if not run:
+            continue
 
         # remove primer sequences with bamclipper
         print(f"\nrunning: trim primer sequences from bam file")
 
         trim_primer = f"bamclipper.sh -b {bam_file_sorted} " \
             f"-p {chosen_ref_scheme_bed_file} -n 4 -u 1 -d 1"
-        #run = try_except_continue_on_fail(trim_primer)
-        #if not run:
-        #    continue
+        run = try_except_continue_on_fail(trim_primer)
+        if not run:
+            continue
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
         nanopolish_cmd_v11 = f"nanopolish variants " \
-            f"--fix-homopolymers --consensus -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 -p 1 -v " \
-            f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} "
+            f"--fix-homopolymers --snps -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
+            f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} --min-candidate-frequency=0.5" \
+            f"--min-candidate-depth=10 --max-haplotypes=10000 "
         print(f'{ref_name}:{ref_start}-{ref_end}')
         print(nanopolish_cmd_v11)
-        #run = try_except_continue_on_fail(nanopolish_cmd_v11)
-        #if not run:
-        #    continue
+        run = try_except_continue_on_fail(nanopolish_cmd_v11)
+        if not run:
+            continue
 
-        # make consensus
-        print(f"\nrunning: making consensus sequence from bam and variant call (vcf) files")
-        #consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > {nanopolish_cons_file}"
-        #run = try_except_continue_on_fail(consensus_cmd)
-        #if not run:
-        #    continue
+        # make nanopolish consensus
+        print(f"\nrunning: making consensuses sequence from bam and variant call (vcf) files")
+        consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > {nanopolish_cons_file}"
+        run = try_except_continue_on_fail(consensus_cmd)
+        if not run:
+            continue
 
         # make bcftools consensus
-        # bcf_cmd = f"bcftools consensus {chosen_ref_scheme} {vcf_file} > {bcftools_cons_file}"
+        bcf_vcf_cmd = f"bcftools mpileup -Ou -f {chosen_ref_scheme} {trimmed_bam_file} | bcftools call --ploidy 1 -mv -Oz -o {bcftools_vcf_file}"
+        bcf_index_cmd = f"bcftools index {bcftools_vcf_file}"
+        bcf_cons_cmd =f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file}"
+        run = try_except_continue_on_fail(bcf_vcf_cmd)
+        if not run:
+            continue
+        run = try_except_continue_on_fail(bcf_index_cmd)
+        if not run:
+            continue
+        run = try_except_continue_on_fail(bcf_cons_cmd)
+        if not run:
+            continue
 
         # make artic-ebov consensus
-        #shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
+        shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
         cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
         cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            f"-n {sample_name} -d 10 -q 30 "
-        #run = try_except_continue_on_fail(cons_cmd)
-        #if not run:
-        #    continue
+            f"-n {sample_name} -d 10 -q 100 "
+        run = try_except_continue_on_fail(cons_cmd)
+        if not run:
+            continue
 
         # plot depth and quality for sample
         plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")

@@ -99,8 +99,8 @@ def main(reference, vcffile, bamfile, sample_name, depth_threshold, quality_thre
             elif len(ref) > len(alt):
                 continue
             else:
-                #report(record, "low_qual_variant", "n", vcffile)
-                cons[record.POS-1] = 'N'
+                # report(record, "low_qual_variant", "n", vcffile)
+                #cons[record.POS-1] = 'N'
                 continue
 
     with open(outfile, 'w') as handle:
