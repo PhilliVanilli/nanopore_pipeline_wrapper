@@ -3,9 +3,10 @@ import sys
 import subprocess
 import argparse
 import pathlib
-from itertools import groupby
 import shutil
+from itertools import groupby
 import pandas as pd
+from Bio import SeqIO
 
 
 __author__ = 'Colin Anthony'
@@ -43,15 +44,45 @@ def py3_fasta_iter(fasta_name):
         yield (header_str, seq)
 
 
-def main(project_path, run_name, sample_names, reference, primer_scheme_dir, make_index, ref_start, ref_end):
+def gather_fastqs(fastq_path, run_name, max_len, min_len):
 
+    fastq_outpath = fastq_path.parent
+    fastq_name = f"{run_name}_all.fastq"
+    output_fastq = pathlib.Path(fastq_outpath, fastq_name)
+
+    all_fastqs = list(fastq_path.glob("*.fastq"))
+    summary_file_location = pathlib.Path(fastq_path, "sequencing_summary.txt")
+
+    with open(output_fastq, 'w') as handle:
+        for fastq in all_fastqs:
+            for record in SeqIO.parse(open(fastq), "fastq"):
+                seq_len = len(record.seq)
+                if seq_len > max_len or seq_len < min_len:
+                    continue
+                else:
+                    SeqIO.write([record], handle, "fastq")
+
+    if output_fastq.is_file():
+        return summary_file_location
+    else:
+        return False
+
+
+def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len):
+    # set the primer_scheme directory
+    script_folder = pathlib.Path(__file__).absolute().parent
+    primer_scheme_dir = pathlib.Path(script_folder, "primer-schemes")
+
+    # get folder paths
     project_path = pathlib.Path(project_path).absolute()
+    run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
     fastq_dir = pathlib.Path(project_path, "fastq")
     sample_names = pathlib.Path(sample_names).absolute()
     demultipled_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
-    # set dir to project dir
+
+    # set dir to project dir so that output is written in correct place by external tools
     os.chdir(project_path)
 
     # set the reference genome
@@ -62,6 +93,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
          "ZaireEbola_V2": pathlib.Path(primer_scheme_dir, "ZaireEbola", "V2", "ZaireEbola.reference.fasta"),
          "LassaL_V1": pathlib.Path(primer_scheme_dir, "LassaL", "V1", "LassaL.reference.fasta"),
          "LassaS_V1": pathlib.Path(primer_scheme_dir, "LassaS", "V1", "LassaS.reference.fasta")}
+
     chosen_ref_scheme = str(reference_scheme[reference])
     chosen_ref_scheme_bed_file = chosen_ref_scheme.replace(".reference.fasta", ".scheme.bed")
     ref_name, ref_seq = list(py3_fasta_iter(chosen_ref_scheme))[0]
@@ -70,13 +102,16 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
         ref_start = 1
     if not ref_end:
         ref_end = len(ref_seq)
+
     print(f"\nReference is {chosen_ref_scheme}\n")
     print(f"\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     # gather all fastq's into one file and all sequencing_summary.txt's into one file
     print(f"\nrunning: artic gather to collect all fastq files into one file")
-    gather_cmd = f"artic gather --guppy --min-length 100 --max-length 700 --prefix {run_name} {fastq_dir}"
-    # try_except_exit_on_fail(gather_cmd)
+    summary_file_path = gather_fastqs(fastq_dir, run_name, max_len, min_len)
+    if not summary_file_path:
+        print("gathering fastq files failed, concatenated fastq file was not found")
+        sys.exit("exiting")
 
     # demultiplex with porchop
     print(f"\nrunning: porechop demultiplexing")
@@ -84,7 +119,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
     if not master_reads_file.is_file():
         print(f"could not find the concatenated fastq, {master_reads_file}")
         sys.exit("exiting")
-    demultiplex_cmd = f"porechop --verbosity 2 --untrimmed -i {master_reads_file} " \
+    demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {master_reads_file} " \
                       f"--discard_middle " \
                       f"--require_two_barcodes " \
                       f"--barcode_threshold 80 " \
@@ -92,10 +127,11 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
                       f"--check_reads 10000 " \
                       f"--barcode_diff 5 " \
                       f"--barcode_dir {demultipled_folder} " \
-                      f"> {str(master_reads_file)}.demultiplexreport.txt"
+                      f"> {master_reads_file}.demultiplexreport.txt"
 
-    # try_except_exit_on_fail(demultiplex_cmd)
+    try_except_exit_on_fail(demultiplex_cmd)
 
+    # add run name to each demultiplexed file
     for file in list(demultipled_folder.glob("*.fastq")):
         path = file.parents[0]
         name = file.name
@@ -106,8 +142,8 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
 
     # index concatenated fastq with nanopolish
     print(f"\nrunning: nanopolish index on fast5/fastq files")
-    nanopolish_index_cmd = f"nanopolish index -d {fast5_dir} {master_reads_file}"
-    # try_except_exit_on_fail(nanopolish_index_cmd)
+    nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file}"
+    try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
     sample_names_df = pd.read_csv(sample_names, sep=None, engine="python")
@@ -138,7 +174,7 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
             print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
             continue
         sample_name = pathlib.Path(sample_fastq).stem
-        sample_folder = pathlib.Path(sample_fastq).parents[0]
+        sample_folder = pathlib.Path(sample_fastq).parent
         sam_name = pathlib.Path(sample_folder, sample_name + "_mapped.sam")
         bam_file = pathlib.Path(sample_folder, sample_name + "_mapped.bam")
         bam_file_sorted = pathlib.Path(sample_folder, sample_name + ".sorted.bam")
@@ -190,16 +226,10 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
         nanopolish_cmd_v11 = f"nanopolish variants " \
-            f"--fix-homopolymers --consensus --outfile {vcf_file} " \
-            f"-w '{ref_name}:{ref_start}-{ref_end}' --min-flanking-sequence=30 " \
-            f"--threads 4 --min-flanking-sequence=30 --ploidy 1 " \
-            f"--reads {master_reads_file} --bam {trimmed_bam_file} --genome {chosen_ref_scheme} " \
-
-        nanopolish_cmd_v09 = f"nanopolish variants --min-flanking-sequence 10 --fix-homopolymers" \
-            f"--progress -t 4 --min-flanking-sequence=30 --ploidy 1 --snps" \
-            f"--reads {master_reads_file} -o {vcf_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} " \
-            f"-w '{ref_name}:{ref_start}-{ref_end}'"
-
+            f"--fix-homopolymers --consensus -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 -p 1 -v " \
+            f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} "
+        print(f'{ref_name}:{ref_start}-{ref_end}')
+        print(nanopolish_cmd_v11)
         run = try_except_continue_on_fail(nanopolish_cmd_v11)
         if not run:
             continue
@@ -212,23 +242,28 @@ def main(project_path, run_name, sample_names, reference, primer_scheme_dir, mak
             continue
 
         # make bcftools consensus
-        bcv_cmd = f"bcftools consensus {chosen_ref_scheme} {vcf_file} > {bcftools_cons_file}"
+        bcf_cmd = f"bcftools consensus {chosen_ref_scheme} {vcf_file} > {bcftools_cons_file}"
 
         # make artic-ebov consensus
-        cons_cmd = f"margin_cons {chosen_ref_scheme} {vcf_file} {rename_trimmed_bam_file} > {artic_cons_file}"
+        cons_cmd = f"python {script_folder}/margin_cons.py {chosen_ref_scheme} {vcf_file} {rename_trimmed_bam_file} > {artic_cons_file}"
+        run = try_except_continue_on_fail(cons_cmd)
+        if not run:
+            continue
 
         print(f"Completed processing sample: {sample_name}")
-
+        input("enter")
     print("sample processing completed")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process raw nanopore reads to consensus sequences",
+    parser = argparse.ArgumentParser(description="Process raw nanopore reads to consensus sequences. run example: "
+    "python /home/phil/programs/nanopore_pipeline_wrapper/step_2_process_basecalled_reads.py "
+                                                 "-in /media/phil/Samsung_T5/20190410_WGS_CHIKV_EXP1/ "
+                                                 "-s /media/phil/Samsung_T5/20190410_WGS_CHIKV_EXP1/sample_names.csv "
+                                                 "-r ChikAsianECSA_V1 ",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-in", "--project_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the directory containing the 'fast5' and 'fastq' folders ", required=True)
-    parser.add_argument("-n", "--run_name", default=argparse.SUPPRESS, type=str,
-                        help="The path to where the sequence_summary file will be written", required=True)
     parser.add_argument("-s", "--sample_names", default=argparse.SUPPRESS, type=str,
                         help="The csv file with the sample names and corresponding barcode combinations"
                              "This file should have three columns: barcode_1,barcode_2,sample_name", required=True)
@@ -236,25 +271,27 @@ if __name__ == "__main__":
                         help="The reference genome and primer scheme to use",
                         choices=["ChikAsianECSA_V1", "ZikaAsian_V1", "ZaireEbola_V1", "ZaireEbola_V2", "LassaL_V1",
                                  "LassaS_V1"], required=False)
-    parser.add_argument("-p", "--primer_scheme_dir", type=str, default=argparse.SUPPRESS,
-                        help="The path to the 'primer_scheme' folder", required=True)
     parser.add_argument("-m", "--make_index", default=False, action="store_true",
-                        help="The path to the 'primer_scheme' folder", required=False)
+                        help="index the reference if not done previously", required=False)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
                         help="The start coordinate of the reference sequence for read mapping", required=False)
     parser.add_argument("-re", "--reference_end", default=False, type=int,
                         help="The end coordinate of the reference sequence for read mapping. Default = full length",
                         required=False)
+    parser.add_argument("-mi", "--min_len", default=300, type=int, help="The minimum read length allowed",
+                        required=False)
+    parser.add_argument("-ma", "--max_len", default=700, type=int, help="The minimum read length allowed",
+                        required=False)
 
     args = parser.parse_args()
 
     project_path = args.project_path
-    run_name = args.run_name
     sample_names = args.sample_names
     reference = args.reference
-    primer_scheme_dir = args.primer_scheme_dir
     make_index = args.make_index
     reference_start = args.reference_start
     reference_end = args.reference_end
+    min_len = args.min_len
+    max_len = args.max_len
 
-    main(project_path, run_name, sample_names, reference, primer_scheme_dir, make_index, reference_start, reference_end)
+    main(project_path, sample_names, reference, make_index, reference_start, reference_end, min_len, max_len)
