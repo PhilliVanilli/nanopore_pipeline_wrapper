@@ -2,7 +2,7 @@
 a wrapper for a nanopore pipeline based on the artic-ebov pipeline
 
 ## Step 1
-Download and install the 64-bit Python 3.7 version of Miniconda
+Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
 
 ## Step 2 clone the pipeline repo
 `git clone https://github.com/ColinAnthony/nanopore_pipeline_wrapper.git`
