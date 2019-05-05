@@ -243,7 +243,12 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             continue
 
         # make bcftools consensus
-        bcf_vcf_cmd = f"bcftools mpileup -Ou -f {chosen_ref_scheme} {trimmed_bam_file} | bcftools call --ploidy 1 -mv -Oz -o {bcftools_vcf_file}"
+
+        min_base_qual = 30 # default=13
+        p_val_of_variant = 0.2 # default=0.5
+
+        bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} {trimmed_bam_file} " \
+            f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -mv -Oz -o {bcftools_vcf_file}"
         bcf_index_cmd = f"bcftools index {bcftools_vcf_file}"
         bcf_cons_cmd =f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file}"
         run = try_except_continue_on_fail(bcf_vcf_cmd)
@@ -259,8 +264,12 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         # make artic-ebov consensus
         shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
         cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
+
+        set_min_depth = 10 # default=20
+        set_min_qual = 30 # default=200
+
         cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            f"-n {sample_name} -d 10 -q 100 "
+            f"-n {sample_name} -d {set_min_depth} -q {set_min_qual} "
         run = try_except_continue_on_fail(cons_cmd)
         if not run:
             continue
@@ -274,7 +283,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             continue
 
         print(f"Completed processing sample: {sample_name}")
-        input("enter")
+
     print("sample processing completed")
 
 
