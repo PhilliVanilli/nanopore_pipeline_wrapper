@@ -14,8 +14,6 @@ def collect_depths(bamfile):
     if not os.path.exists(bamfile):
         raise SystemExit("bamfile %s doesn't exist" % (bamfile,))
 
-    print((bamfile, sys.stderr))
-
     p = subprocess.Popen(['samtools', 'depth', bamfile], stdout=subprocess.PIPE)
     out, err = p.communicate()
     depths = defaultdict(dict)
@@ -29,16 +27,15 @@ def collect_depths(bamfile):
 
 def report(r, status, allele, vcffile):
     idfile = os.path.basename(vcffile).split(".")[0]
-    print("%s\t%s\tstatus\t%s" % (idfile, r.POS, status), sys.stderr)
-    print("%s\t%s\tdepth\t%s" % (idfile, r.POS, r.INFO.get('TotalReads', ['n/a'])), sys.stderr)
-    print("%s\t%s\tbasecalledfrac\t%s" % (idfile, r.POS, r.INFO.get('BaseCalledFraction', ['n/a'])), sys.stderr)
-    print("%s\t%s\tsupportfrac\t%s" % (idfile, r.POS, r.INFO.get('SupportFraction', ['n/a'])), sys.stderr)
-    print("%s\t%s\tallele\t%s" % (idfile, r.POS, allele), sys.stderr)
-    print("%s\t%s\tref\t%s" % (idfile, r.POS, r.REF), sys.stderr)
+    print("%s\t%s\tstatus\t%s" % (idfile, r.POS, status))
+    print("%s\t%s\tdepth\t%s" % (idfile, r.POS, r.INFO.get('TotalReads', ['n/a'])))
+    print("%s\t%s\tbasecalledfrac\t%s" % (idfile, r.POS, r.INFO.get('BaseCalledFraction', ['n/a'])))
+    print("%s\t%s\tsupportfrac\t%s" % (idfile, r.POS, r.INFO.get('SupportFraction', ['n/a'])))
+    print("%s\t%s\tallele\t%s" % (idfile, r.POS, allele))
+    print("%s\t%s\tref\t%s" % (idfile, r.POS, r.REF))
 
 
-def main(reference, vcffile, bamfile, depth_threshold, sample_name):
-
+def main(reference, vcffile, bamfile, sample_name, depth_threshold, quality_threshold):
     masked_positions = []
     bamfile = pathlib.Path(bamfile).absolute()
     reference = pathlib.Path(reference).absolute()
@@ -66,7 +63,7 @@ def main(reference, vcffile, bamfile, depth_threshold, sample_name):
         if record.ALT[0] != '.':
             # variant call
             if record.POS in masked_positions:
-                report(record, "masked_manual", "n", vcffile)
+                #report(record, "masked_manual", "n", vcffile)
                 continue
 
             # commented out: primers removed with bamclipper
@@ -78,36 +75,31 @@ def main(reference, vcffile, bamfile, depth_threshold, sample_name):
             # support = float(record.INFO['SupportFraction'])
             total_reads = int(record.INFO['TotalReads'])
             qual = record.QUAL
-
             ref = record.REF
             alt = str(record.ALT[0])
 
-            if len(alt) > len(ref):
-                print(f"Skipping insertion at position: {record.POS}", sys.stderr)
-                continue
-
-            if qual >= 200 and total_reads >= depth_threshold:
+            if qual >= quality_threshold and total_reads >= depth_threshold:
                 if len(ref) > len(alt):
-                    print(f"N-masking confident deletion at {record.POS}", sys.stderr)
+                    print(f"gap-masking confident deletion at {record.POS}")
                     for n in range(len(ref)):
                         cons[record.POS-1+n] = '-'
                     continue
+                elif len(alt) > len(ref):
+                    for i, n in enumerate(alt):
+                        cons.insert(record.POS - 1 + i, n)
+                        print(f"adding insertion at position: {record.POS}")
+                        continue
+                else:
+                    cons[record.POS - 1] = str(alt)
+                    print(f"assigning variant call at {record.POS}")
 
-                report(record, "variant", alt, vcffile)
+                #report(record, "variant", alt, vcffile)
                 sett.add(record.POS)
-                if len(ref) > len(alt):
-                    print(("deletion", sys.stderr))
-                    continue
 
-                if len(alt) > len(ref):
-                    print(("insertion", sys.stderr))
-                    continue
-
-                cons[record.POS-1] = str(alt)
             elif len(ref) > len(alt):
                 continue
             else:
-                report(record, "low_qual_variant", "n", vcffile)
+                #report(record, "low_qual_variant", "n", vcffile)
                 cons[record.POS-1] = 'N'
                 continue
 
@@ -128,6 +120,8 @@ if __name__ == "__main__":
                         help="The sample name", required=True)
     parser.add_argument("-d", "--depth_threshold", type=int, default=10,
                         help="The minimum coverage allowed to call variants as real", required=True)
+    parser.add_argument("-q", "--quality_threshold", type=int, default=10,
+                        help="The minimum Q score to allowed to call variants as real", required=True)
 
     args = parser.parse_args()
 
@@ -136,5 +130,6 @@ if __name__ == "__main__":
     vcf_file = args.vcf_file
     sample_name = args.sample_name
     depth_threshold = args.depth_threshold
+    quality_threshold = args.quality_threshold
 
-    main(reference, vcf_file, bam_file, sample_name, depth_threshold)
+    main(reference, vcf_file, bam_file, sample_name, depth_threshold, quality_threshold)
