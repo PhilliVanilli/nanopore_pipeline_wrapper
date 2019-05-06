@@ -273,6 +273,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         if not run:
             continue
 
+        # convert bam file to a mutli fasta alignment
         sam4web = pathlib.Path(script_folder, "jvarkit", "dist" "sam4weblogo.jar")
         msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o outout {trimmed_bam_file}"
         run = try_except_continue_on_fail(msa_from_bam)
