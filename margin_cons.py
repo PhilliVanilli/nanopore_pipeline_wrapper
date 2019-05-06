@@ -85,8 +85,8 @@ def main(reference, vcffile, bamfile, sample_name, depth_threshold, quality_thre
                         cons[record.POS-1+n] = '-'
                     continue
                 elif len(alt) > len(ref):
-                    for i, n in enumerate(alt):
-                        cons.insert(record.POS - 1 + i, n)
+                    for i, n in enumerate(alt[::-1]):
+                        cons.insert(record.POS - 1, n)
                         print(f"adding insertion at position: {record.POS}")
                         continue
                 else:
