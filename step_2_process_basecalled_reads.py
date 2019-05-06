@@ -68,7 +68,7 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
         return False
 
 
-def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len):
+def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len, rerun_var_call):
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
     primer_scheme_dir = pathlib.Path(script_folder, "primer-schemes")
@@ -81,6 +81,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     sample_names = pathlib.Path(sample_names).absolute()
     demultipled_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
+    master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
 
     # set dir to project dir so that output is written in correct place by external tools
     os.chdir(project_path)
@@ -105,45 +106,45 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
     print(f"\nReference is {chosen_ref_scheme}\n")
     print(f"\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
+    if not rerun_var_call:
+        # gather all fastq's into one file and all sequencing_summary.txt's into one file
+        print(f"\nrunning: collecting all fastq files into one file")
+        summary_file_path = gather_fastqs(fastq_dir, run_name, max_len, min_len)
+        if not summary_file_path:
+            print("gathering fastq files failed, concatenated fastq file was not found")
+            sys.exit("exiting")
 
-    # gather all fastq's into one file and all sequencing_summary.txt's into one file
-    print(f"\nrunning: collecting all fastq files into one file")
-    summary_file_path = gather_fastqs(fastq_dir, run_name, max_len, min_len)
-    if not summary_file_path:
-        print("gathering fastq files failed, concatenated fastq file was not found")
-        sys.exit("exiting")
+        # demultiplex with porchop
+        print(f"\nrunning: porechop demultiplexing")
 
-    # demultiplex with porchop
-    print(f"\nrunning: porechop demultiplexing")
-    master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
-    if not master_reads_file.is_file():
-        print(f"could not find the concatenated fastq, {master_reads_file}")
-        sys.exit("exiting")
-    demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {master_reads_file} " \
-                      f"--discard_middle " \
-                      f"--require_two_barcodes " \
-                      f"--barcode_threshold 80 " \
-                      f"--threads 4 " \
-                      f"--check_reads 10000 " \
-                      f"--barcode_diff 5 " \
-                      f"--barcode_dir {demultipled_folder} " \
-                      f"> {master_reads_file}.demultiplexreport.txt"
+        if not master_reads_file.is_file():
+            print(f"could not find the concatenated fastq, {master_reads_file}")
+            sys.exit("exiting")
+        demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {master_reads_file} " \
+                          f"--discard_middle " \
+                          f"--require_two_barcodes " \
+                          f"--barcode_threshold 80 " \
+                          f"--threads 4 " \
+                          f"--check_reads 10000 " \
+                          f"--barcode_diff 5 " \
+                          f"--barcode_dir {demultipled_folder} " \
+                          f"> {master_reads_file}.demultiplexreport.txt"
 
-    try_except_exit_on_fail(demultiplex_cmd)
+        try_except_exit_on_fail(demultiplex_cmd)
 
-    # add run name to each demultiplexed file
-    for file in list(demultipled_folder.glob("*.fastq")):
-        path = file.parents[0]
-        name = file.name
-        if len(name) == 10:
-            new_name = f"{run_name}_{name}"
-            new_file = pathlib.Path(path, new_name)
-            os.rename(str(file), new_file)
+        # add run name to each demultiplexed file
+        for file in list(demultipled_folder.glob("*.fastq")):
+            path = file.parents[0]
+            name = file.name
+            if len(name) == 10:
+                new_name = f"{run_name}_{name}"
+                new_file = pathlib.Path(path, new_name)
+                os.rename(str(file), new_file)
 
-    # index concatenated fastq with nanopolish
-    print(f"\nrunning: nanopolish index on fast5/fastq files")
-    nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file}"
-    try_except_exit_on_fail(nanopolish_index_cmd)
+        # index concatenated fastq with nanopolish
+        print(f"\nrunning: nanopolish index on fast5/fastq files")
+        nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file}"
+        try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
     sample_names_df = pd.read_csv(sample_names, sep=None, engine="python")
@@ -159,11 +160,12 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         barcode_2_file = pathlib.Path(demultipled_folder, barcode_2)
         cat_outfile = pathlib.Path(sample_dir, f"{sample_name}.fastq")
         all_sample_files.append(cat_outfile)
-        cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
-        run = try_except_continue_on_fail(cat_cmd)
-        if not run:
-            print("missing one or more demultiplexed files for this sample")
-            continue
+        if not rerun_var_call:
+            cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
+            run = try_except_continue_on_fail(cat_cmd)
+            if not run:
+                print("missing one or more demultiplexed files for this sample")
+                continue
 
     if make_index:
         make_index_cmd = f"bwa index {chosen_ref_scheme}"
@@ -184,44 +186,46 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         nanopolish_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_nanopolish.fasta")
         bcftools_vcf_file = pathlib.Path(sample_folder, sample_name + "_bcftools.vcf")
         bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
+        msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
         os.chdir(sample_folder)
 
-        # run read mapping using bwa
-        print(f"\nrunning: bwa read mapping")
-        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
-        run = try_except_continue_on_fail(bwa_cmd)
-        if not run:
-            continue
+        if not rerun_var_call:
+            # run read mapping using bwa
+            print(f"\nrunning: bwa read mapping")
+            bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
+            run = try_except_continue_on_fail(bwa_cmd)
+            if not run:
+                continue
 
-        # convert sam to bam
-        print(f"\nrunning: sam to bam conversion")
-        sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
-        run = try_except_continue_on_fail(sam_bam_cmd)
-        if not run:
-            continue
+            # convert sam to bam
+            print(f"\nrunning: sam to bam conversion")
+            sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
+            run = try_except_continue_on_fail(sam_bam_cmd)
+            if not run:
+                continue
 
-        # sort bam file
-        print(f"\nrunning: sorting bam file")
-        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
-        run = try_except_continue_on_fail(sort_sam_cmd)
-        if not run:
-            continue
+            # sort bam file
+            print(f"\nrunning: sorting bam file")
+            sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
+            run = try_except_continue_on_fail(sort_sam_cmd)
+            if not run:
+                continue
 
-        # index bam file for bamclipper
-        print(f"\nrunning: indexing bam file")
-        index_bam_cmd = f"samtools index {bam_file_sorted}"
-        run = try_except_continue_on_fail(index_bam_cmd)
-        if not run:
-            continue
+            # index bam file for bamclipper
+            print(f"\nrunning: indexing bam file")
+            index_bam_cmd = f"samtools index {bam_file_sorted}"
+            run = try_except_continue_on_fail(index_bam_cmd)
+            if not run:
+                continue
 
-        # remove primer sequences with bamclipper
-        print(f"\nrunning: trim primer sequences from bam file")
+            # remove primer sequences with bamclipper
+            print(f"\nrunning: trim primer sequences from bam file")
 
-        trim_primer = f"bamclipper.sh -b {bam_file_sorted} " \
-            f"-p {chosen_ref_scheme_bed_file} -n 4 -u 1 -d 1"
-        run = try_except_continue_on_fail(trim_primer)
-        if not run:
-            continue
+            trim_primer = f"bamclipper.sh -b {bam_file_sorted} " \
+                f"-p {chosen_ref_scheme_bed_file} -n 4 -u 1 -d 1"
+            run = try_except_continue_on_fail(trim_primer)
+            if not run:
+                continue
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
@@ -275,7 +279,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # convert bam file to a mutli fasta alignment
         sam4web = pathlib.Path(script_folder, "jvarkit", "dist" "sam4weblogo.jar")
-        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o outout {trimmed_bam_file}"
+        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
         run = try_except_continue_on_fail(msa_from_bam)
         if not run:
             continue
@@ -317,6 +321,9 @@ if __name__ == "__main__":
                         required=False)
     parser.add_argument("-ma", "--max_len", default=700, type=int, help="The minimum read length allowed",
                         required=False)
+    parser.add_argument("-rvc", "--rerun_var_call", default=False, action="store_true",
+                        help="Only rerun the variant calling and consensus making steps. Requires the pipeline to have "
+                             "been run previously", required=False)
 
     args = parser.parse_args()
 
@@ -328,5 +335,7 @@ if __name__ == "__main__":
     reference_end = args.reference_end
     min_len = args.min_len
     max_len = args.max_len
+    rerun_var_call = args.rerun_var_call
 
-    main(project_path, sample_names, reference, make_index, reference_start, reference_end, min_len, max_len)
+    main(project_path, sample_names, reference, make_index, reference_start, reference_end, min_len, max_len,
+         rerun_var_call)
