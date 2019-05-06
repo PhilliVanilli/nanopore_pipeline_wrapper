@@ -251,7 +251,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         p_val_of_variant = 0.2 # default=0.5
 
         bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} {trimmed_bam_file} " \
-            f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -mv -Oz -o {bcftools_vcf_file}"
+            f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz -o {bcftools_vcf_file}"
         bcf_index_cmd = f"bcftools index {bcftools_vcf_file}"
         bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file}"
         run = try_except_continue_on_fail(bcf_vcf_cmd)
@@ -278,7 +278,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             continue
 
         # convert bam file to a mutli fasta alignment
-        sam4web = pathlib.Path(script_folder, "jvarkit", "dist" "sam4weblogo.jar")
+        sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
         msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
         run = try_except_continue_on_fail(msa_from_bam)
         if not run:
