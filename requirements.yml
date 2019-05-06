@@ -1,7 +1,7 @@
 name: nanop
 channels:
   - bioconda
-  - etetoolkit # included because bioconda phyml is broken
+  - etetoolkit
   - conda-forge
   - defaults
 dependencies:
@@ -10,6 +10,9 @@ dependencies:
   - porechop
   - bamclipper
   - pyvcf
+  - h5py
+  - tqdm
+  - plotly  
   - pycoQC
   - pandas
   - samtools
@@ -20,4 +23,3 @@ dependencies:
   - ete3
   - mafft
   - matplotlib
-
