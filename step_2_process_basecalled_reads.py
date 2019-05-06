@@ -227,7 +227,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: nanopolish variant calling")
         nanopolish_cmd_v11 = f"nanopolish variants " \
             f"--fix-homopolymers --snps -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
-            f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} --min-candidate-frequency=0.5" \
+            f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} --min-candidate-frequency=0.3" \
             f"--min-candidate-depth=10 --max-haplotypes=10000 "
         print(f'{ref_name}:{ref_start}-{ref_end}')
         print(nanopolish_cmd_v11)
@@ -270,6 +270,12 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
             f"-n {sample_name} -d {set_min_depth} -q {set_min_qual} "
         run = try_except_continue_on_fail(cons_cmd)
+        if not run:
+            continue
+
+        sam4web = pathlib.Path(script_folder, "jvarkit", "dist" "sam4weblogo.jar")
+        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o outout {trimmed_bam_file}"
+        run = try_except_continue_on_fail(msa_from_bam)
         if not run:
             continue
 
