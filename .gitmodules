@@ -1,0 +1,3 @@
+[submodule "jvarkit"]
+	path = jvarkit
+	url = https://github.com/ColinAnthony/jvarkit.git
