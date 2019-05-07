@@ -27,7 +27,7 @@ and repeat the step above
 
 
 ## Step 2 clone the pipeline repo
-`git clone https://github.com/ColinAnthony/nanopore_pipeline_wrapper.git`
+`git clone --recursive https://github.com/ColinAnthony/nanopore_pipeline_wrapper.git`
 
  change into the repo directory
  
