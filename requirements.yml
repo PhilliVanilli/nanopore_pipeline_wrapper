@@ -18,8 +18,9 @@ dependencies:
   - samtools
   - bcftools
   - bwa
-  - clint
-  - pysam
+  - matplotlib
+  - openjdk
   - ete3
   - mafft
-  - matplotlib
+  - pysam
+  - clint
