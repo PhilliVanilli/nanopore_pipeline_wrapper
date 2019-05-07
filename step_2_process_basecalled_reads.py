@@ -68,8 +68,7 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
         return False
 
 
-def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len, rerun_var_call,
-         jrvkit_pqth):
+def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len, rerun_var_call):
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
     primer_scheme_dir = pathlib.Path(script_folder, "primer-schemes")
@@ -83,8 +82,6 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     demultipled_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
     master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
-    if jrvkit_pqth:
-        jrvkit_pqth = pathlib.Path(jrvkit_pqth).absolute()
 
     # set dir to project dir so that output is written in correct place by external tools
     os.chdir(project_path)
@@ -281,12 +278,11 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             continue
 
         # convert bam file to a mutli fasta alignment
-        if jrvkit_pqth:
-            sam4web = pathlib.Path(jrvkit_pqth, "sam4weblogo.jar")
-            msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
-            run = try_except_continue_on_fail(msa_from_bam)
-            if not run:
-                continue
+        sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
+        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
+        run = try_except_continue_on_fail(msa_from_bam)
+        if not run:
+            continue
 
         # plot depth and quality for sample
         plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
@@ -328,9 +324,6 @@ if __name__ == "__main__":
     parser.add_argument("-rvc", "--rerun_var_call", default=False, action="store_true",
                         help="Only rerun the variant calling and consensus making steps. Requires the pipeline to have "
                              "been run previously", required=False)
-    parser.add_argument("-jrv", "--jrvkit_pqth", default=False, type=str,
-                        help="The path to the directory containing the sam4weblogo.jar file"
-                             "ie: /path/to/jvarkit/dist", required=False)
 
     args = parser.parse_args()
 
@@ -343,7 +336,6 @@ if __name__ == "__main__":
     min_len = args.min_len
     max_len = args.max_len
     rerun_var_call = args.rerun_var_call
-    jrvkit_pqth = args.jrvkit_pqth
 
     main(project_path, sample_names, reference, make_index, reference_start, reference_end, min_len, max_len,
-         rerun_var_call, jrvkit_pqth)
+         rerun_var_call)
