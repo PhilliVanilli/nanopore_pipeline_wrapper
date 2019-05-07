@@ -5,20 +5,26 @@ a wrapper for a nanopore pipeline based on the artic-ebov pipeline
 Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
 
 ## Step 1.2
-Download and install jvarkit from http://lindenb.github.io/jvarkit/SAM4WebLogo.html
-This tool converts a bam/sam file to a multi sequence alignment
+install jvarkit (http://lindenb.github.io/jvarkit/SAM4WebLogo.html, https://github.com/lindenb/jvarkit.git)
 
-Use of this tool in the pipeline is optional
+This tool converts a bam/sam file to a multi sequence alignment
 
 To install run:
 
-`sudo apt-get install openjdk-11-jdk`
+cd into the jvarkit folder in this repo
 
-`git clone https://github.com/lindenb/jvarkit.git`
-
-`cd jvarkit`
+and run
 
 `./gradlew sam4weblogo`
+
+If this fails
+
+install java jkd 11
+
+`sudo apt-get install openjdk-11-jdk`
+
+and repeat the step above
+
 
 ## Step 2 clone the pipeline repo
 `git clone https://github.com/ColinAnthony/nanopore_pipeline_wrapper.git`
