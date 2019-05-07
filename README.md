@@ -12,7 +12,7 @@ Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
  `cd nanopore_pipeline_wrapper`
 
 ## Step 3 create the conda environment
-`conda env create -f environment.yml`
+`conda env create -f requirements.yml`
 
 ## Step 3.2
 install jvarkit (http://lindenb.github.io/jvarkit/SAM4WebLogo.html, https://github.com/lindenb/jvarkit.git)
