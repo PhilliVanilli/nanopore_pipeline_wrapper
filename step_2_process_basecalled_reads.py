@@ -4,6 +4,7 @@ import subprocess
 import argparse
 import pathlib
 import shutil
+import collections
 from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
@@ -44,6 +45,24 @@ def py3_fasta_iter(fasta_name):
         yield (header_str, seq)
 
 
+def fasta_to_dct(file_name):
+    """
+    :param file_name: The fasta formatted file to read from.
+    :return: a dictionary of the contents of the file name given. Dictionary in the format:
+    {sequence_id: sequence_string, id_2: sequence_2, etc.}
+    """
+    dct = collections.defaultdict(str)
+    my_gen = py3_fasta_iter(file_name)
+    for k, v in my_gen:
+        new_key = k.replace(" ", "_")
+        if new_key in dct.keys():
+            print("Duplicate sequence ids found. Exiting")
+            raise KeyError("Duplicate sequence ids found")
+        dct[new_key] = v.upper()
+
+    return dct
+
+
 def gather_fastqs(fastq_path, run_name, max_len, min_len):
 
     fastq_outpath = fastq_path.parent
@@ -66,6 +85,68 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
         return summary_file_location
     else:
         return False
+
+
+def d_freq_lists(dna_list):
+    """
+
+    :param dna_list: (list) a alist of DNA sequences
+    :return: (dict) a dictionary of the frequency for each base, for each site in the alignment
+    """
+    n = len(dna_list[0])
+    dist_dict = {'A': [0]*n, 'C': [0]*n, 'G': [0]*n, 'T': [0]*n, '-': [0]*n}
+
+    total = len(dna_list)
+    for seq in dna_list:
+        for index, dna in enumerate(seq):
+            dist_dict[dna][index] += 1
+
+    for base, freqlist in dist_dict.items():
+        for i, cnt in enumerate(freqlist):
+            frq = round((cnt/total*100), 4)
+            freqlist[i] = frq
+        dist_dict[base] = freqlist
+
+    return dist_dict
+
+
+def consensus_maker(d):
+    """
+    Create a consensus sequence from an alignment
+    :param d: (dict) dictionary of an alignment (key = seq name (str): value = aligned sequence (str))
+    :return: (str) the consensus sequence
+    """
+    seq_list = []
+    for names, seq in d.items():
+        seq_list.append(seq)
+
+    master_profile = d_freq_lists(seq_list)
+    n = len(seq_list[0])
+    consensus = ""
+    degen = {('A', 'G'): 'R', ('C', 'T'): 'Y', ('A', 'C'): 'M', ('G', 'T'): 'K', ('C', 'G'): 'S', ('A', 'T'): 'W',
+             ('A', 'C', 'T'): 'H', ('C', 'G', 'T'): 'B', ('A', 'C', 'G'): 'V', ('A', 'G', 'T'): 'D',
+             ('A', 'C', 'G', 'T'): 'N'}
+
+    for i in range(n):
+        dct = {N: master_profile[N][i] for N in ['T', 'G', 'C', 'A', '-']}
+        m = max(dct.values())
+        b = max(dct, key=dct.get)
+        l = list(sorted(N for N in ['T', 'G', 'C', 'A', '-'] if dct[N] == m))
+        if len(l) == 1:
+            consensus += str(b)
+        elif '-' in l and len(l) == 2:
+            l.remove('-')
+            l = tuple(l)
+            consensus += str(l)
+        elif '-' in l and len(l) > 2:
+            l.remove('-')
+            l = tuple(l)
+            consensus += str(degen[l])
+        else:
+            l = tuple(l)
+            consensus += str(degen[l])
+
+    return consensus
 
 
 def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len, rerun_var_call):
@@ -187,6 +268,8 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         bcftools_vcf_file = pathlib.Path(sample_folder, sample_name + "_bcftools.vcf")
         bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
         msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
+        msa_cons = pathlib.Path(sample_folder, sample_name + "_msa_consensus.fasta")
+
         os.chdir(sample_folder)
 
         if not rerun_var_call:
@@ -283,6 +366,12 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         run = try_except_continue_on_fail(msa_from_bam)
         if not run:
             continue
+
+        # convert multi fasta alignment to consensus sequence
+        fasta_msa_d = fasta_to_dct(msa_fasta)
+        cons = consensus_maker(fasta_msa_d)
+        with open(msa_cons, 'w') as handle:
+            handle.write(f"{sample_name}_bam_msa_consensus\n{cons}\n")
 
         # plot depth and quality for sample
         plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
