@@ -23,6 +23,8 @@ To install run:
 
 cd into the jvarkit folder in this repo
 
+` cd jvarkit`
+
 and run
 
 `./gradlew sam4weblogo`
