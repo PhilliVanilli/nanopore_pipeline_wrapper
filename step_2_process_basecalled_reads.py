@@ -93,6 +93,8 @@ def d_freq_lists(dna_list):
     :param dna_list: (list) a alist of DNA sequences
     :return: (dict) a dictionary of the frequency for each base, for each site in the alignment
     """
+    print(dna_list)
+    input("enter")
     n = len(dna_list[0])
     dist_dict = {'A': [0]*n, 'C': [0]*n, 'G': [0]*n, 'T': [0]*n, '-': [0]*n}
 
@@ -315,7 +317,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         nanopolish_cmd_v11 = f"nanopolish variants " \
             f"--fix-homopolymers --snps -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
             f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} --min-candidate-frequency=0.3" \
-            f"--min-candidate-depth=10 --max-haplotypes=10000 "
+            f"--min-candidate-depth=10 --max-haplotypes=1000000"
         print(f'{ref_name}:{ref_start}-{ref_end}')
         print(nanopolish_cmd_v11)
         run = try_except_continue_on_fail(nanopolish_cmd_v11)
@@ -366,7 +368,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         run = try_except_continue_on_fail(msa_from_bam)
         if not run:
             continue
-
+        input("enter")
         # convert multi fasta alignment to consensus sequence
         fasta_msa_d = fasta_to_dct(msa_fasta)
         cons = consensus_maker(fasta_msa_d)
