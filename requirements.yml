@@ -7,7 +7,6 @@ channels:
 dependencies:
   - biopython
   - nanopolish
-  - porechop
   - bamclipper
   - pyvcf
   - h5py
