@@ -53,11 +53,9 @@ def fasta_to_dct(file_name):
     """
     dct = collections.defaultdict(str)
     my_gen = py3_fasta_iter(file_name)
-    for k, v in my_gen:
-        new_key = k.replace(" ", "_")
-        if new_key in dct.keys():
-            print("Duplicate sequence ids found. Exiting")
-            raise KeyError("Duplicate sequence ids found")
+    for i, (k, v) in enumerate(my_gen):
+        # resolve for duplicate sequence headers
+        new_key = k.replace(" ", "_") + str(i).zfill(4)
         dct[new_key] = v.upper()
 
     return dct
@@ -93,8 +91,6 @@ def d_freq_lists(dna_list):
     :param dna_list: (list) a alist of DNA sequences
     :return: (dict) a dictionary of the frequency for each base, for each site in the alignment
     """
-    print(dna_list)
-    input("enter")
     n = len(dna_list[0])
     dist_dict = {'A': [0]*n, 'C': [0]*n, 'G': [0]*n, 'T': [0]*n, '-': [0]*n}
 
@@ -130,20 +126,12 @@ def consensus_maker(d):
              ('A', 'C', 'G', 'T'): 'N'}
 
     for i in range(n):
-        dct = {N: master_profile[N][i] for N in ['T', 'G', 'C', 'A', '-']}
+        dct = {N: master_profile[N][i] for N in ['T', 'G', 'C', 'A']}
         m = max(dct.values())
         b = max(dct, key=dct.get)
-        l = list(sorted(N for N in ['T', 'G', 'C', 'A', '-'] if dct[N] == m))
+        l = list(sorted(N for N in ['T', 'G', 'C', 'A'] if dct[N] == m))
         if len(l) == 1:
             consensus += str(b)
-        elif '-' in l and len(l) == 2:
-            l.remove('-')
-            l = tuple(l)
-            consensus += str(l)
-        elif '-' in l and len(l) > 2:
-            l.remove('-')
-            l = tuple(l)
-            consensus += str(degen[l])
         else:
             l = tuple(l)
             consensus += str(degen[l])
@@ -274,43 +262,42 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         os.chdir(sample_folder)
 
-        if not rerun_var_call:
-            # run read mapping using bwa
-            print(f"\nrunning: bwa read mapping")
-            bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
-            run = try_except_continue_on_fail(bwa_cmd)
-            if not run:
-                continue
+        # run read mapping using bwa
+        print(f"\nrunning: bwa read mapping")
+        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
+        run = try_except_continue_on_fail(bwa_cmd)
+        if not run:
+            continue
 
-            # convert sam to bam
-            print(f"\nrunning: sam to bam conversion")
-            sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
-            run = try_except_continue_on_fail(sam_bam_cmd)
-            if not run:
-                continue
+        # convert sam to bam
+        print(f"\nrunning: sam to bam conversion")
+        sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
+        run = try_except_continue_on_fail(sam_bam_cmd)
+        if not run:
+            continue
 
-            # sort bam file
-            print(f"\nrunning: sorting bam file")
-            sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
-            run = try_except_continue_on_fail(sort_sam_cmd)
-            if not run:
-                continue
+        # sort bam file
+        print(f"\nrunning: sorting bam file")
+        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
+        run = try_except_continue_on_fail(sort_sam_cmd)
+        if not run:
+            continue
 
-            # index bam file for bamclipper
-            print(f"\nrunning: indexing bam file")
-            index_bam_cmd = f"samtools index {bam_file_sorted}"
-            run = try_except_continue_on_fail(index_bam_cmd)
-            if not run:
-                continue
+        # index bam file for bamclipper
+        print(f"\nrunning: indexing bam file")
+        index_bam_cmd = f"samtools index {bam_file_sorted}"
+        run = try_except_continue_on_fail(index_bam_cmd)
+        if not run:
+            continue
 
-            # remove primer sequences with bamclipper
-            print(f"\nrunning: trim primer sequences from bam file")
+        # remove primer sequences with bamclipper
+        print(f"\nrunning: trim primer sequences from bam file")
 
-            trim_primer = f"bamclipper.sh -b {bam_file_sorted} " \
-                f"-p {chosen_ref_scheme_bed_file} -n 4 -u 1 -d 1"
-            run = try_except_continue_on_fail(trim_primer)
-            if not run:
-                continue
+        trim_primer = f"bamclipper.sh -b {bam_file_sorted} " \
+            f"-p {chosen_ref_scheme_bed_file} -n 4 -u 1 -d 1"
+        run = try_except_continue_on_fail(trim_primer)
+        if not run:
+            continue
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
@@ -373,7 +360,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         fasta_msa_d = fasta_to_dct(msa_fasta)
         cons = consensus_maker(fasta_msa_d)
         with open(msa_cons, 'w') as handle:
-            handle.write(f"{sample_name}_bam_msa_consensus\n{cons}\n")
+            handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
 
         # plot depth and quality for sample
         plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
