@@ -37,6 +37,18 @@ install java jkd 11
 
 and repeat the step above
 
+##  Step 3.3
+install porechop 
+
+change into the Porechop directory
+
+`cd Porechop`
+
+install porechop
+
+`python3 setup.py install`
+
+
 # Step 4 activate the conda env
 activate the environment
 
