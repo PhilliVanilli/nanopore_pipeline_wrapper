@@ -368,7 +368,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         run = try_except_continue_on_fail(msa_from_bam)
         if not run:
             continue
-        input("enter")
+
         # convert multi fasta alignment to consensus sequence
         fasta_msa_d = fasta_to_dct(msa_fasta)
         cons = consensus_maker(fasta_msa_d)
