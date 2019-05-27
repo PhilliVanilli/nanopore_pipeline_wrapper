@@ -37,6 +37,10 @@ install java jkd 11
 
 and repeat the step above
 
+change directory back to the main repo
+
+`cd ..`
+
 ##  Step 3.3
 install porechop 
 
