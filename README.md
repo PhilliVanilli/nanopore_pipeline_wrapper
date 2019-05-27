@@ -14,6 +14,11 @@ Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
 ## Step 3 create the conda environment
 `conda env create -f requirements.yml`
 
+# Step 3.1 activate the conda env
+activate the environment
+
+`source activate nanop`
+
 ## Step 3.2
 install jvarkit (http://lindenb.github.io/jvarkit/SAM4WebLogo.html, https://github.com/lindenb/jvarkit.git)
 
@@ -52,13 +57,11 @@ install porechop
 
 `python3 setup.py install`
 
+# Running the pipeline:
 
-# Step 4 activate the conda env
-activate the environment
+## activate the environment
 
 `source activate nanop`
-
-# Running the pipeline:
 
 ## make QCplots or raw data
 `python step_1_plot_sequencing_quality.py -in <path to where the ouput folder will be made> -s <the path and name of the sequencing_summary.txt file>`
