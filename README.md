@@ -1,6 +1,13 @@
 # nanopore_pipeline_wrapper
 a wrapper for a nanopore pipeline based on the artic-ebov pipeline
 
+## Requirements
+This pipeline wrapper requires python v3.6 or higher (Pyhton 3.7 is preferred)
+
+Several dependencies are noted in the requirements.yml file and are installed automatically when creating the conda environment.
+external dependencies jvarkit and porechop are bundled with the repo but have specific install steps highlighted below.
+this version of porechop is needed as it has been expanded to allow the 24 combination native borcode set to be used.
+
 ## Step 1
 Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
 
@@ -13,6 +20,11 @@ Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
 
 ## Step 3 create the conda environment
 `conda env create -f requirements.yml`
+
+# Step 3.1 activate the conda env
+activate the environment
+
+`source activate nanop`
 
 ## Step 3.2
 install jvarkit (http://lindenb.github.io/jvarkit/SAM4WebLogo.html, https://github.com/lindenb/jvarkit.git)
@@ -37,6 +49,10 @@ install java jkd 11
 
 and repeat the step above
 
+change directory back to the main repo
+
+`cd ..`
+
 ##  Step 3.3
 install porechop 
 
@@ -48,13 +64,11 @@ install porechop
 
 `python3 setup.py install`
 
+# Running the pipeline:
 
-# Step 4 activate the conda env
-activate the environment
+## activate the environment
 
 `source activate nanop`
-
-# Running the pipeline:
 
 ## make QCplots or raw data
 `python step_1_plot_sequencing_quality.py -in <path to where the ouput folder will be made> -s <the path and name of the sequencing_summary.txt file>`
