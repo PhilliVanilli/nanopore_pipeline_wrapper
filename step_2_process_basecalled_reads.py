@@ -216,7 +216,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
                           f"--check_reads 10000 " \
                           f"--barcode_diff 5 " \
                           f"--barcode_dir {demultipled_folder} " \
-                          f"> {master_reads_file}.demultiplexreport.txt 2> | tee -a {log_file}"
+                          f"> {master_reads_file}.demultiplexreport.txt 2>&1 | tee -a {log_file}"
 
         try_except_exit_on_fail(demultiplex_cmd)
 
@@ -252,7 +252,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         cat_outfile = pathlib.Path(sample_dir, f"{sample_name}.fastq")
         all_sample_files.append(cat_outfile)
         if not rerun_var_call:
-            cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile} 2> | tee -a {log_file}"
+            cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile} 2>&1 | tee -a {log_file}"
             run = try_except_continue_on_fail(cat_cmd)
             if not run:
                 print("missing one or more demultiplexed files for this sample")
@@ -290,7 +290,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: bwa read mapping")
         with open(log_file, "w") as handle:
             handle.write(f"\nrunning: bwa read mapping\n")
-        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name} 2> | tee -a {log_file}"
+        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(bwa_cmd)
         if not run:
             continue
@@ -299,7 +299,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: sam to bam conversion")
         with open(log_file, "w") as handle:
             handle.write(f"\nrunning: sam to bam conversion\n")
-        sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file} 2> | tee -a {log_file}"
+        sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(sam_bam_cmd)
         if not run:
             continue
@@ -360,7 +360,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             handle.write(f"\nrunning: making consensuses sequence from from nanopolish\n")
 
         consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
-            f"{nanopolish_cons_file} 2> | tee -a {log_file}"
+            f"{nanopolish_cons_file} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(consensus_cmd)
         if not run:
             continue
