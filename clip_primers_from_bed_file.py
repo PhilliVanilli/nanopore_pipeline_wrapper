@@ -158,9 +158,9 @@ def main(infile, outfile, bedfile):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trim alignments from an amplicon scheme.')
-    parser.add_argument('--infile', help='Input BAM filename and path')
-    parser.add_argument('--outfile', help='output BAM filename and path')
-    parser.add_argument('--bedfile', help='BED file containing the amplicon scheme')
+    parser.add_argument('-in', '--infile', help='Input BAM filename and path')
+    parser.add_argument('-o', '--outfile', help='output BAM filename and path')
+    parser.add_argument('-b', '--bedfile', help='BED file containing the amplicon scheme')
 
     args = parser.parse_args()
     infile = args.infile
