@@ -182,29 +182,29 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
     print(f"\nReference is {chosen_ref_scheme}\n")
     print(f"\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
-    with open(log_file, "w") as handle:
+    with open(log_file, "a") as handle:
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     if not rerun_var_call:
         # gather all fastq's into one file and all sequencing_summary.txt's into one file
         print(f"\nrunning: collecting all fastq files into one file")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: collecting all fastq files into one file")
         summary_file_path = gather_fastqs(fastq_dir, run_name, max_len, min_len)
         if not summary_file_path:
             print("gathering fastq files failed, concatenated fastq file was not found")
-            with open(log_file, "w") as handle:
+            with open(log_file, "a") as handle:
                 handle.write("gathering fastq files failed, concatenated fastq file was not found\nexiting")
             sys.exit("exiting")
 
         # demultiplex with porchop
         print(f"\nrunning: porechop demultiplexing")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: porechop demultiplexing")
 
         if not master_reads_file.is_file():
             print(f"could not find the concatenated fastq, {master_reads_file}")
-            with open(log_file, "w") as handle:
+            with open(log_file, "a") as handle:
                 handle.write(f"could not find the concatenated fastq, {master_reads_file}\nexiting")
             sys.exit("exiting")
 
@@ -231,7 +231,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # index concatenated fastq with nanopolish
         print(f"\nrunning: nanopolish index on fast5/fastq files")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish index on fast5/fastq files\n")
         nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file} " \
             f"2>&1 | tee -a {log_file}"
@@ -256,7 +256,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             run = try_except_continue_on_fail(cat_cmd)
             if not run:
                 print("missing one or more demultiplexed files for this sample")
-                with open(log_file, "w") as handle:
+                with open(log_file, "a") as handle:
                     handle.write("\nmissing one or more demultiplexed files for this sample\n")
                 continue
 
@@ -267,7 +267,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     for sample_fastq in all_sample_files:
         if not sample_fastq.is_file():
             print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
-            with open(log_file, "w") as handle:
+            with open(log_file, "a") as handle:
                 handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
             continue
         sample_name = pathlib.Path(sample_fastq).stem
@@ -288,7 +288,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # run read mapping using bwa
         print(f"\nrunning: bwa read mapping")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: bwa read mapping\n")
         bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(bwa_cmd)
@@ -297,7 +297,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # convert sam to bam
         print(f"\nrunning: sam to bam conversion")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sam to bam conversion\n")
         sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(sam_bam_cmd)
@@ -306,7 +306,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # sort bam file
         print(f"\nrunning: sorting bam file")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sorting bam file\n")
         sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(sort_sam_cmd)
@@ -315,7 +315,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # index bam file
         print(f"\nrunning: indexing bam file")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: indexing bam file\n")
         index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(index_bam_cmd)
@@ -324,7 +324,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # remove primer sequences with custom script
         print(f"\nrunning: trim primer sequences from bam file")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
 
         trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
@@ -335,7 +335,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # index bam file
         print(f"\nrunning: indexing bam file")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: indexing bam file\n")
         index_bam_cmd = f"samtools index {trimmed_bam_file} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(index_bam_cmd)
@@ -344,7 +344,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish variant calling\n")
 
         nanopolish_cmd_v11 = f"nanopolish variants " \
@@ -353,11 +353,11 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             f"--min-candidate-depth=10 --max-haplotypes=1000000 2>&1 | tee -a {log_file}"
 
         print(f'{ref_name}:{ref_start}-{ref_end}')
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f'{ref_name}:{ref_start}-{ref_end}')
 
         print(nanopolish_cmd_v11)
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\n{nanopolish_cmd_v11}\n")
         run = try_except_continue_on_fail(nanopolish_cmd_v11)
         if not run:
@@ -365,7 +365,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # make nanopolish consensus
         print(f"\nrunning: making consensuses sequence from nanopolish")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from from nanopolish\n")
 
         consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
@@ -376,7 +376,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # make bcftools consensus
         print(f"\nrunning: making consensuses sequence from bcftools")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from bcftools\n")
         min_base_qual = 30  # default=13
         p_val_of_variant = 0.2  # default=0.5
@@ -399,7 +399,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # make artic-ebov consensus
         print(f"\nrunning: making consensuses sequence from artic_ebov method")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from artic_ebov method\n")
         shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
         cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
@@ -415,7 +415,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # convert bam file to a mutli fasta alignment
         print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
         sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
         msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}" \
@@ -439,11 +439,11 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             continue
 
         print(f"Completed processing sample: {sample_name}")
-        with open(log_file, "w") as handle:
+        with open(log_file, "a") as handle:
             handle.write(f"\nCompleted processing sample: {sample_name}\n\n")
 
     print("sample processing completed")
-    with open(log_file, "w") as handle:
+    with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
 
 
