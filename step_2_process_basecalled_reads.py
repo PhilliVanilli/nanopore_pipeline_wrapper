@@ -328,7 +328,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
 
         trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
-        trim_primer = f"{trim_script} -in {bam_file_sorted} -o {trimmed_bam_file} -b {chosen_ref_scheme_bed_file} "
+        trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_bam_file} -b {chosen_ref_scheme_bed_file} "
         run = try_except_continue_on_fail(trim_primer)
         if not run:
             continue
