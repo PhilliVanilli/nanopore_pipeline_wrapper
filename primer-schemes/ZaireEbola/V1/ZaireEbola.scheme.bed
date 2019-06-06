@@ -1,3 +1,4 @@
+genome	start	end	Primer_ID	value	orientation	number
 KR063671.1	32	59	Ebov_1_LEFT	1
 KR063671.1	1035	1057	Ebov_1_RIGHT	1
 KR063671.1	907	929	Ebov_2_LEFT	2

@@ -1,3 +1,4 @@
+genome	start	end	Primer_ID	value	orientation	number
 EBOV|AF272001|Mayinga|Yambuku_DRC|1976	38	64	Ebola-Zaire_1_LEFT	1
 EBOV|AF272001|Mayinga|Yambuku_DRC|1976	500	522	Ebola-Zaire_1_RIGHT	1
 EBOV|AF272001|Mayinga|Yambuku_DRC|1976	434	459	Ebola-Zaire_2_LEFT	2

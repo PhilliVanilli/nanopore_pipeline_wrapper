@@ -1,3 +1,4 @@
+genome	start	end	Primer_ID	value	orientation	number
 JF912190|H|AltoAlegre_RR_Brazil|2002	2	24	YFV_500_1_LEFT	0	+	1
 JF912190|H|AltoAlegre_RR_Brazil|2002	492	514	YFV_500_1_RIGHT	0	-	1
 JF912190|H|AltoAlegre_RR_Brazil|2002	408	430	YFV_500_2_LEFT	0	+	2

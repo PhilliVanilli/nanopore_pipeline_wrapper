@@ -1,3 +1,4 @@
+genome	start	end	Primer_ID	value	orientation	number
 KJ776791.2	28	52	400_1_out_L	0	+
 KJ776791.2	482	504	400_1_out_R	0	-
 KJ776791.2	658	680	400_3_out_L	0	+

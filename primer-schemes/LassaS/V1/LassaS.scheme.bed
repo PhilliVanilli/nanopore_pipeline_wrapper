@@ -1,3 +1,4 @@
+genome	start	end	Primer_ID	value	orientation	number
 NC_004296.1_Lassa_virus_segment_S_complete_sequence	17	39	Lassas_1_LEFT	0	+	1
 NC_004296.1_Lassa_virus_segment_S_complete_sequence	434	457	Lassas_1_RIGHT	0	-	1
 NC_004296.1_Lassa_virus_segment_S_complete_sequence	301	323	Lassas_2_LEFT	0	+	2
