@@ -1,3 +1,4 @@
+genome	start	end	Primer_ID	value	orientation	number
 KP164568.1	115	137	CHIK_400_1_LEFT_3	0	+	1
 KP164568.1	428	451	CHIK_400_1_RIGHT_3	0	-	1
 KP164568.1	294	316	CHIK_400_2_LEFT_0	0	+	2
