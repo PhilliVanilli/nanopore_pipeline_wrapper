@@ -334,13 +334,13 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
             continue
 
         # index bam file
-        print(f"\nrunning: indexing bam file")
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: indexing bam file\n")
-        index_bam_cmd = f"samtools index {trimmed_bam_file} 2>&1 | tee -a {log_file}"
-        run = try_except_continue_on_fail(index_bam_cmd)
-        if not run:
-            continue
+        # print(f"\nrunning: indexing bam file")
+        # with open(log_file, "a") as handle:
+        #     handle.write(f"\nrunning: indexing bam file\n")
+        # index_bam_cmd = f"samtools index {trimmed_bam_file} 2>&1 | tee -a {log_file}"
+        # run = try_except_continue_on_fail(index_bam_cmd)
+        # if not run:
+        #     continue
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
