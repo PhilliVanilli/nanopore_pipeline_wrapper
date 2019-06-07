@@ -285,6 +285,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         bam_file_sorted = pathlib.Path(sample_folder, sample_name + ".sorted.bam")
         trimmed_sam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.sam")
         trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.bam")
+        sorted_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped_sorted.bam")
         rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
         vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
         nanopolish_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_nanopolish.fasta")
@@ -299,7 +300,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # run read mapping using bwa
         print(f"\nrunning: bwa read mapping")
-        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
+        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} 2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: bwa read mapping\n")
             handle.write(f"{bwa_cmd}\n")
@@ -309,7 +310,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # convert sam to bam
         print(f"\nrunning: sam to bam conversion")
-        sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file}"
+        sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file} 2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sam to bam conversion\n")
             handle.write(f"{sam_bam_cmd}\n")
@@ -319,7 +320,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # sort bam file
         print(f"\nrunning: sorting bam file")
-        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
+        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sorting bam file\n")
             handle.write(f"{sort_sam_cmd}\n")
@@ -329,7 +330,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # index bam file
         print(f"\nrunning: indexing bam file")
-        index_bam_cmd = f"samtools index {bam_file_sorted}"
+        index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: indexing bam file\n")
             handle.write(f"{index_bam_cmd}\n")
@@ -341,7 +342,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: trim primer sequences from bam file")
         trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
         trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
-            f"-b {chosen_ref_scheme_bed_file} "
+            f"-b {chosen_ref_scheme_bed_file} 2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
             handle.write(f"{trim_primer}\n")
@@ -351,16 +352,28 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # convert sam to bam
         print(f"\nrunning: sam to bam conversion of trimmed file")
+        sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sam to bam conversion\n")
-        sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} > {trimmed_bam_file}"
+            handle.write(f"{sam_bam_cmd}\n")
         run = try_except_continue_on_fail(sam_bam_cmd)
+        if not run:
+            continue
+
+        # sort bam file
+        print(f"\nrunning: sorting bam file")
+        sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
+            f"2>&1 | tee -a {log_file}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: sorting bam file\n")
+            handle.write(f"{sort_sam_cmd}\n")
+        run = try_except_continue_on_fail(sort_sam_cmd)
         if not run:
             continue
 
         # index trimmed bam file
         print(f"\nrunning: indexing bam file")
-        index_bam_cmd = f"samtools index {trimmed_bam_file}"
+        index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: indexing bam file\n")
             handle.write(f"{index_bam_cmd}\n")
@@ -372,7 +385,8 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: nanopolish variant calling")
         nanopolish_cmd_v11 = f"nanopolish variants " \
             f"--fix-homopolymers --snps -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
-            f"-r {master_reads_file} -b {bam_file_sorted} -g {chosen_ref_scheme} --min-candidate-frequency=0.3" \
+            f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
+            f"--min-candidate-frequency=0.3" \
             f"--min-candidate-depth=10 --max-haplotypes=1000000"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish variant calling using:\n")
@@ -400,10 +414,12 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: making consensuses sequence from bcftools")
         min_base_qual = 30  # default=13
         p_val_of_variant = 0.2  # default=0.5
-        bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} {trimmed_bam_file} " \
-            f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz -o {bcftools_vcf_file} "
-        bcf_index_cmd = f"bcftools index {bcftools_vcf_file} "
-        bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file} "
+        bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} " \
+            f"{sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz " \
+            f"-o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+        bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+        bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} -o {bcftools_cons_file} " \
+            f"2>&1 | tee -a {log_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
             handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
@@ -422,7 +438,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # make artic-ebov consensus
         print(f"\nrunning: making consensuses sequence from artic_ebov method")
-        shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
+        shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
         cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
 
         set_min_depth = 10  # default=20
@@ -444,7 +460,8 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
 
         sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
-        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
+        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} " \
+            f"{sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
         print(msa_from_bam)
 
         with open(log_file, "a") as handle:
@@ -470,7 +487,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         # plot depth and quality for sample
         plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
         plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            f"-n {sample_name}"
+            f"-n {sample_name} 2>&1 | tee -a {log_file}"
         run = try_except_continue_on_fail(plot_cmd)
         if not run:
             continue
