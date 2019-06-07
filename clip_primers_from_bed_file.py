@@ -120,17 +120,18 @@ def main(infile, outfile, bedfile):
 
         # logic - if alignment start site is _before_ but within X bases of  a primer site, trim it off
         if s.is_unmapped:
-            # print("%s skipped as unmapped" % (s.query_name), sys.stderr)
+            print("%s skipped as unmapped" % (s.query_name))
             continue
 
         if s.is_supplementary:
-            # print("%s skipped as supplementary" % (s.query_name), sys.stderr)
+            print("%s skipped as supplementary" % (s.query_name))
             continue
 
         p1 = find_primer(bed, s.reference_start, '+')
         p2 = find_primer(bed, s.reference_end, '-')
+
         if not is_correctly_paired(p1, p2):
-            print("pairing messed up in bed file for", p1[2]['Primer_ID'], p2[2]['Primer_ID'])
+            print("pairing messed up. primers matched:", p1[2]['Primer_ID'], p2[2]['Primer_ID'])
 
         # if the alignment starts before the end of the primer, trim to that position
         try:

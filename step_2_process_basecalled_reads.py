@@ -216,7 +216,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
                           f"--check_reads 10000 " \
                           f"--barcode_diff 5 " \
                           f"--barcode_dir {demultipled_folder} " \
-                          f"> {master_reads_file}.demultiplexreport.txt 2>&1 | tee -a {log_file}"
+                          f"> {master_reads_file}.demultiplexreport.txt"
 
         try_except_exit_on_fail(demultiplex_cmd)
 
@@ -233,8 +233,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: nanopolish index on fast5/fastq files")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish index on fast5/fastq files\n")
-        nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file} " \
-            f"2>&1 | tee -a {log_file}"
+        nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file} "
         try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
@@ -252,7 +251,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         cat_outfile = pathlib.Path(sample_dir, f"{sample_name}.fastq")
         all_sample_files.append(cat_outfile)
         if not rerun_var_call:
-            cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile} 2>&1 | tee -a {log_file}"
+            cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
             run = try_except_continue_on_fail(cat_cmd)
             if not run:
                 print("missing one or more demultiplexed files for this sample")
@@ -275,6 +274,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         sam_name = pathlib.Path(sample_folder, sample_name + "_mapped.sam")
         bam_file = pathlib.Path(sample_folder, sample_name + "_mapped.bam")
         bam_file_sorted = pathlib.Path(sample_folder, sample_name + ".sorted.bam")
+        trimmed_sam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.sam")
         trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.bam")
         rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
         vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
@@ -299,7 +299,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: sam to bam conversion")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sam to bam conversion\n")
-        sam_bam_cmd = f"samtools view -bS {sam_name} > {bam_file}"
+        sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file}"
         run = try_except_continue_on_fail(sam_bam_cmd)
         if not run:
             continue
@@ -308,7 +308,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: sorting bam file")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sorting bam file\n")
-        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
+        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
         run = try_except_continue_on_fail(sort_sam_cmd)
         if not run:
             continue
@@ -317,30 +317,42 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         print(f"\nrunning: indexing bam file")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: indexing bam file\n")
-        index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
+        index_bam_cmd = f"samtools index {bam_file_sorted}"
         run = try_except_continue_on_fail(index_bam_cmd)
         if not run:
             continue
 
         # remove primer sequences with custom script
         print(f"\nrunning: trim primer sequences from bam file")
+        trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
+        trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
+            f"-b {chosen_ref_scheme_bed_file} "
+
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
+            handle.write(f"{trim_primer}\n")
 
-        trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
-        trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_bam_file} -b {chosen_ref_scheme_bed_file} "
         run = try_except_continue_on_fail(trim_primer)
         if not run:
             continue
 
-        # index bam file
-        print(f"\nrunning: indexing bam file")
+        # convert sam to bam
+        print(f"\nrunning: sam to bam conversion")
         with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: indexing bam file\n")
-        index_bam_cmd = f"samtools index {trimmed_bam_file} 2>&1 | tee -a {log_file}"
-        run = try_except_continue_on_fail(index_bam_cmd)
+            handle.write(f"\nrunning: sam to bam conversion\n")
+        sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} > {trimmed_bam_file}"
+        run = try_except_continue_on_fail(sam_bam_cmd)
         if not run:
             continue
+
+        # # index bam file
+        # print(f"\nrunning: indexing bam file")
+        # with open(log_file, "a") as handle:
+        #     handle.write(f"\nrunning: indexing bam file\n")
+        # index_bam_cmd = f"samtools index {trimmed_bam_file}"
+        # run = try_except_continue_on_fail(index_bam_cmd)
+        # if not run:
+        #     continue
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
@@ -349,8 +361,8 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         nanopolish_cmd_v11 = f"nanopolish variants " \
             f"--fix-homopolymers --snps -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
-            f"-r {master_reads_file} -b {trimmed_bam_file} -g {chosen_ref_scheme} --min-candidate-frequency=0.3" \
-            f"--min-candidate-depth=10 --max-haplotypes=1000000 2>&1 | tee -a {log_file}"
+            f"-r {master_reads_file} -b {bam_file_sorted} -g {chosen_ref_scheme} --min-candidate-frequency=0.3" \
+            f"--min-candidate-depth=10 --max-haplotypes=1000000"
 
         print(f'{ref_name}:{ref_start}-{ref_end}')
         with open(log_file, "a") as handle:
@@ -381,11 +393,9 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         min_base_qual = 30  # default=13
         p_val_of_variant = 0.2  # default=0.5
         bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} {trimmed_bam_file} " \
-            f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz -o {bcftools_vcf_file} " \
-            f"2>&1 | tee -a {log_file}"
-        bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-        bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file} " \
-            f"2>&1 | tee -a {log_file}"
+            f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz -o {bcftools_vcf_file} "
+        bcf_index_cmd = f"bcftools index {bcftools_vcf_file} "
+        bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file} "
 
         run = try_except_continue_on_fail(bcf_vcf_cmd)
         if not run:
@@ -408,7 +418,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         set_min_qual = 30  # default=200
 
         cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            f"-n {sample_name} -d {set_min_depth} -q {set_min_qual} 2>&1 | tee -a {log_file}"
+            f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
         run = try_except_continue_on_fail(cons_cmd)
         if not run:
             continue
