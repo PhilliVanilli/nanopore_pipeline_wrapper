@@ -140,6 +140,15 @@ def consensus_maker(d):
     return consensus
 
 
+def rename_fasta(fasta_file_name_path, sample_name, cons_type):
+    fasta_d = fasta_to_dct(fasta_file_name_path)
+    os.unlink(fasta_file_name_path)
+    with open(fasta_file_name_path, 'w') as fh:
+        for seq_name, seq in fasta_d.items():
+            new_name = f"{sample_name}_{cons_type}"
+            fh.write(f">{new_name}\n{seq}\n")
+
+
 def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len, rerun_var_call):
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -283,6 +292,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
         msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
         msa_cons = pathlib.Path(sample_folder, sample_name + "_msa_consensus.fasta")
+        artic_cons_file = pathlib.Path(sample_folder, f"{sample_name}_consensus_artic.fasta")
         sam_header_temp_file = pathlib.Path(sample_folder, sample_name + "sam_header_tmp.txt")
 
         os.chdir(sample_folder)
@@ -399,6 +409,9 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         if not run:
             continue
 
+        # rename the fasta header to the sample name
+        rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
+
         # make bcftools consensus
         print(f"\nrunning: making consensuses sequence from bcftools")
         min_base_qual = 30  # default=13
@@ -420,6 +433,9 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         if not run:
             continue
 
+        # rename the fasta header to the sample name
+        rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
+
         # make artic-ebov consensus
         print(f"\nrunning: making consensuses sequence from artic_ebov method")
         shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
@@ -437,6 +453,9 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         if not run:
             continue
 
+        # rename the fasta header to the sample name
+        rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
+
         # convert bam file to a mutli fasta alignment
         print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
 
@@ -444,7 +463,6 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
         print(msa_from_bam)
 
-        input("enter")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
             handle.write(f"{msa_from_bam}\n")
