@@ -293,7 +293,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
         msa_cons = pathlib.Path(sample_folder, sample_name + "_msa_consensus.fasta")
         artic_cons_file = pathlib.Path(sample_folder, f"{sample_name}_consensus_artic.fasta")
-        sam_header_temp_file = pathlib.Path(sample_folder, sample_name + "sam_header_tmp.txt")
+        all_consensus_sequences = pathlib.Path(sample_folder, sample_name + "all_consensus.fasta")
 
         os.chdir(sample_folder)
 
@@ -460,6 +460,13 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         with open(msa_cons, 'w') as handle:
             handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
 
+        # add all consensus seqs into one file
+        concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} {msa_cons} " \
+            f"{artic_cons_file} > {all_consensus_sequences}"
+        run = try_except_continue_on_fail(concat_consensus_cmd)
+        if not run:
+            pass
+
         # plot depth and quality for sample
         plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
         plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
@@ -470,7 +477,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         print(f"Completed processing sample: {sample_name}")
         with open(log_file, "a") as handle:
-            handle.write(f"\nCompleted processing sample: {sample_name}\n\n")
+            handle.write(f"\n\n__________________\nCompleted processing sample: {sample_name}\n\n__________________\n")
 
     print("sample processing completed")
     with open(log_file, "a") as handle:
