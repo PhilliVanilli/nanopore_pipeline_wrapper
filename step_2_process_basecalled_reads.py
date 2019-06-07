@@ -356,47 +356,43 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: nanopolish variant calling\n")
-
         nanopolish_cmd_v11 = f"nanopolish variants " \
             f"--fix-homopolymers --snps -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
             f"-r {master_reads_file} -b {bam_file_sorted} -g {chosen_ref_scheme} --min-candidate-frequency=0.3" \
             f"--min-candidate-depth=10 --max-haplotypes=1000000"
-
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: nanopolish variant calling using:\n")
+            handle.write(f"{nanopolish_cmd_v11}\n")
         print(f'{ref_name}:{ref_start}-{ref_end}')
         with open(log_file, "a") as handle:
             handle.write(f'{ref_name}:{ref_start}-{ref_end}')
 
-        print(nanopolish_cmd_v11)
-        with open(log_file, "a") as handle:
-            handle.write(f"\n{nanopolish_cmd_v11}\n")
         run = try_except_continue_on_fail(nanopolish_cmd_v11)
         if not run:
             continue
 
         # make nanopolish consensus
         print(f"\nrunning: making consensuses sequence from nanopolish")
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from from nanopolish\n")
-
         consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
             f"{nanopolish_cons_file}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: making consensuses sequence from from nanopolish using:\n")
+            handle.write(f"{consensus_cmd}\n")
         run = try_except_continue_on_fail(consensus_cmd)
         if not run:
             continue
 
         # make bcftools consensus
         print(f"\nrunning: making consensuses sequence from bcftools")
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from bcftools\n")
         min_base_qual = 30  # default=13
         p_val_of_variant = 0.2  # default=0.5
         bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} {trimmed_bam_file} " \
             f"| bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz -o {bcftools_vcf_file} "
         bcf_index_cmd = f"bcftools index {bcftools_vcf_file} "
         bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file} "
-
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: making consensuses sequence from bcftools\n")
+            handle.write(f"{bcf_vcf_cmd}\n{bcf_index_cmd}\n{bcf_cons_cmd}\n")
         run = try_except_continue_on_fail(bcf_vcf_cmd)
         if not run:
             continue
@@ -409,8 +405,6 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # make artic-ebov consensus
         print(f"\nrunning: making consensuses sequence from artic_ebov method")
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from artic_ebov method\n")
         shutil.copyfile(trimmed_bam_file, rename_trimmed_bam_file)
         cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
 
@@ -419,17 +413,20 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
             f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
+            handle.write(f"{cons_cmd}\n")
         run = try_except_continue_on_fail(cons_cmd)
         if not run:
             continue
 
         # convert bam file to a mutli fasta alignment
         print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
+        sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
+        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
-        sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
-        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}" \
-            f"2>&1 | tee -a {log_file}"
+            handle.write(f"{msa_from_bam}\n")
         run = try_except_continue_on_fail(msa_from_bam)
         if not run:
             continue
@@ -443,7 +440,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         # plot depth and quality for sample
         plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
         plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            f"-n {sample_name} 2>&1 | tee -a {log_file}"
+            f"-n {sample_name}"
         run = try_except_continue_on_fail(plot_cmd)
         if not run:
             continue
