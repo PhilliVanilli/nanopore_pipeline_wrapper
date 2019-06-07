@@ -342,31 +342,15 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
         trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
             f"-b {chosen_ref_scheme_bed_file} "
-
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
             handle.write(f"{trim_primer}\n")
-
         run = try_except_continue_on_fail(trim_primer)
         if not run:
             continue
 
-        # add sam headers back into sam file
-        head_cmd = f"head -n 2 {sam_name} > {sam_header_temp_file}"
-        run = try_except_continue_on_fail(head_cmd)
-        if not run:
-            continue
-        cat_headers_into_sam = f"cat {trimmed_sam_file} >> {sam_header_temp_file}"
-        run = try_except_continue_on_fail(cat_headers_into_sam)
-        if not run:
-            continue
-
-        # replace old sam with new one containing headers
-        os.unlink(trimmed_sam_file)
-        os.rename(sam_header_temp_file, trimmed_sam_file)
-
         # convert sam to bam
-        print(f"\nrunning: sam to bam conversion")
+        print(f"\nrunning: sam to bam conversion of trimmed file")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sam to bam conversion\n")
         sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} > {trimmed_bam_file}"
