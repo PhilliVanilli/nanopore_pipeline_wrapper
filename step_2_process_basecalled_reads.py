@@ -283,41 +283,46 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
         msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
         msa_cons = pathlib.Path(sample_folder, sample_name + "_msa_consensus.fasta")
+        sam_header_temp_file = pathlib.Path(sample_folder, sample_name + "sam_header_tmp.txt")
 
         os.chdir(sample_folder)
 
         # run read mapping using bwa
         print(f"\nrunning: bwa read mapping")
+        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: bwa read mapping\n")
-        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} > {sam_name}"
+            handle.write(f"{bwa_cmd}\n")
         run = try_except_continue_on_fail(bwa_cmd)
         if not run:
             continue
 
         # convert sam to bam
         print(f"\nrunning: sam to bam conversion")
+        sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sam to bam conversion\n")
-        sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file}"
+            handle.write(f"{sam_bam_cmd}\n")
         run = try_except_continue_on_fail(sam_bam_cmd)
         if not run:
             continue
 
         # sort bam file
         print(f"\nrunning: sorting bam file")
+        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: sorting bam file\n")
-        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted}"
+            handle.write(f"{sort_sam_cmd}\n")
         run = try_except_continue_on_fail(sort_sam_cmd)
         if not run:
             continue
 
         # index bam file
         print(f"\nrunning: indexing bam file")
+        index_bam_cmd = f"samtools index {bam_file_sorted}"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: indexing bam file\n")
-        index_bam_cmd = f"samtools index {bam_file_sorted}"
+            handle.write(f"{index_bam_cmd}\n")
         run = try_except_continue_on_fail(index_bam_cmd)
         if not run:
             continue
@@ -336,6 +341,20 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         if not run:
             continue
 
+        # add sam headers back into sam file
+        head_cmd = f"head -n 2 {sam_name} > {sam_header_temp_file}"
+        run = try_except_continue_on_fail(head_cmd)
+        if not run:
+            continue
+        cat_headers_into_sam = f"cat {trimmed_sam_file} >> {sam_header_temp_file}"
+        run = try_except_continue_on_fail(cat_headers_into_sam)
+        if not run:
+            continue
+
+        # replace old sam with new one containing headers
+        os.unlink(trimmed_sam_file)
+        os.rename(sam_header_temp_file, trimmed_sam_file)
+
         # convert sam to bam
         print(f"\nrunning: sam to bam conversion")
         with open(log_file, "a") as handle:
@@ -345,14 +364,15 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         if not run:
             continue
 
-        # # index bam file
-        # print(f"\nrunning: indexing bam file")
-        # with open(log_file, "a") as handle:
-        #     handle.write(f"\nrunning: indexing bam file\n")
-        # index_bam_cmd = f"samtools index {trimmed_bam_file}"
-        # run = try_except_continue_on_fail(index_bam_cmd)
-        # if not run:
-        #     continue
+        # index trimmed bam file
+        print(f"\nrunning: indexing bam file")
+        index_bam_cmd = f"samtools index {trimmed_bam_file}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: indexing bam file\n")
+            handle.write(f"{index_bam_cmd}\n")
+        run = try_except_continue_on_fail(index_bam_cmd)
+        if not run:
+            continue
 
         # run nanopolish
         print(f"\nrunning: nanopolish variant calling")
@@ -363,9 +383,6 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish variant calling using:\n")
             handle.write(f"{nanopolish_cmd_v11}\n")
-        print(f'{ref_name}:{ref_start}-{ref_end}')
-        with open(log_file, "a") as handle:
-            handle.write(f'{ref_name}:{ref_start}-{ref_end}')
 
         run = try_except_continue_on_fail(nanopolish_cmd_v11)
         if not run:
@@ -391,8 +408,8 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         bcf_index_cmd = f"bcftools index {bcftools_vcf_file} "
         bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} > {bcftools_cons_file} "
         with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from bcftools\n")
-            handle.write(f"{bcf_vcf_cmd}\n{bcf_index_cmd}\n{bcf_cons_cmd}\n")
+            handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
+            handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
         run = try_except_continue_on_fail(bcf_vcf_cmd)
         if not run:
             continue
@@ -422,8 +439,12 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # convert bam file to a mutli fasta alignment
         print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
+
         sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
         msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} {trimmed_bam_file}"
+        print(msa_from_bam)
+
+        input("enter")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
             handle.write(f"{msa_from_bam}\n")
