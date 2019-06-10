@@ -291,7 +291,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     if make_index:
         make_index_cmd = f"bwa index {chosen_ref_scheme}"
         try_except_exit_on_fail(make_index_cmd)
-    input("entererere")
+
     for sample_fastq in all_sample_files:
         if not sample_fastq.is_file():
             print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
