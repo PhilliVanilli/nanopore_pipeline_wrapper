@@ -120,22 +120,25 @@ def consensus_maker(d):
         seq_list.append(seq)
 
     master_profile = d_freq_lists(seq_list)
-    n = len(seq_list[0])
+    seq_length = len(seq_list[0])
     consensus = ""
     degen = {('A', 'G'): 'R', ('C', 'T'): 'Y', ('A', 'C'): 'M', ('G', 'T'): 'K', ('C', 'G'): 'S', ('A', 'T'): 'W',
              ('A', 'C', 'T'): 'H', ('C', 'G', 'T'): 'B', ('A', 'C', 'G'): 'V', ('A', 'G', 'T'): 'D',
              ('A', 'C', 'G', 'T'): 'N'}
 
-    for i in range(n):
-        dct = {N: master_profile[N][i] for N in ['T', 'G', 'C', 'A']}
-        m = max(dct.values())
-        b = max(dct, key=dct.get)
-        l = list(sorted(N for N in ['T', 'G', 'C', 'A'] if dct[N] == m))
-        if len(l) == 1:
-            consensus += str(b)
+    for position in range(seq_length):
+        dct = {base: master_profile[base][position] for base in ['T', 'G', 'C', 'A']}
+        # get the highest frequency value
+        max_freq = max(dct.values())
+        # get the base with the highest frequency value
+        base_with_max_freq = max(dct, key=dct.get)
+        # if multiple bases share the max frequency make a list of them for degeneracy code lookup
+        most_freq_bases = list(sorted(base for base in ['T', 'G', 'C', 'A'] if dct[base] == max_freq))
+        if len(most_freq_bases) == 1:
+            consensus += str(base_with_max_freq)
         else:
-            l = tuple(l)
-            consensus += str(degen[l])
+            most_freq_bases = tuple(most_freq_bases)
+            consensus += str(degen[most_freq_bases])
 
     return consensus
 
@@ -271,7 +274,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     if make_index:
         make_index_cmd = f"bwa index {chosen_ref_scheme}"
         try_except_exit_on_fail(make_index_cmd)
-
+    input("entererere")
     for sample_fastq in all_sample_files:
         if not sample_fastq.is_file():
             print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
