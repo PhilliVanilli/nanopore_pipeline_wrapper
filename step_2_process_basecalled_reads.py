@@ -152,6 +152,15 @@ def rename_fasta(fasta_file_name_path, sample_name, cons_type):
             fh.write(f">{new_name}\n{seq}\n")
 
 
+def cat_sample_names(barcode, run_name):
+    if barcode != '':
+        file_name = f"{run_name}_{barcode}.fastq"
+    else:
+        file_name = " "
+
+    return file_name
+
+
 def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len, rerun_var_call):
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -249,21 +258,29 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         try_except_exit_on_fail(nanopolish_index_cmd)
 
     # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
-    sample_names_df = pd.read_csv(sample_names, sep=None, engine="python")
-    sample_names_df['barcode_1'] = sample_names_df['barcode_1'].apply(lambda x: run_name + "_" + x + ".fastq")
-    sample_names_df['barcode_2'] = sample_names_df['barcode_2'].apply(lambda x: run_name + "_" + x + ".fastq")
+    sample_names_df = pd.read_csv(sample_names, sep=None, keep_default_na=False, na_values=['NA'], engine="python")
+    sample_names_df['barcode_1'] = sample_names_df['barcode_1'].apply(lambda x: cat_sample_names(x, run_name))
+    sample_names_df['barcode_2'] = sample_names_df['barcode_2'].apply(lambda x: cat_sample_names(x, run_name))
     sample_names_dict = sample_names_df.set_index('sample_name').T.to_dict(orient='list')
+
     all_sample_files = []
     for sample_name, [barcode_1, barcode_2] in sample_names_dict.items():
         sample_dir = pathlib.Path(sample_folder, sample_name)
         if not sample_dir.exists():
             pathlib.Path(sample_dir).mkdir(mode=0o777, parents=True, exist_ok=True)
+
         barcode_1_file = pathlib.Path(demultipled_folder, barcode_1)
-        barcode_2_file = pathlib.Path(demultipled_folder, barcode_2)
+        if barcode_2 == " ":
+            barcode_2_file = ""
+        else:
+            barcode_2_file = pathlib.Path(demultipled_folder, barcode_2)
+
         cat_outfile = pathlib.Path(sample_dir, f"{sample_name}.fastq")
         all_sample_files.append(cat_outfile)
+
         if not rerun_var_call:
             cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
+            print(cat_cmd)
             run = try_except_continue_on_fail(cat_cmd)
             if not run:
                 print("missing one or more demultiplexed files for this sample")
