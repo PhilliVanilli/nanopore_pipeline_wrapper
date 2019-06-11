@@ -185,7 +185,8 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
     # set the reference genome
     reference_scheme = \
-        {"ChikAsianECSA_V1": pathlib.Path(primer_scheme_dir, "ChikAsianECSA", "V1", "ChikAsianECSA.reference.fasta"),
+        {"ChikECSA_V1": pathlib.Path(primer_scheme_dir, "ChikECSA", "V1", "ChikECSA.reference.fasta"),
+         "ChikAsian_V1": pathlib.Path(primer_scheme_dir, "ChikAsian", "V1", "ChikAsian.reference.fasta"),
          "ZikaAsian_V1":  pathlib.Path(primer_scheme_dir, "ZikaAsian", "V1", "ZikaAsian.reference.fasta"),
          "ZaireEbola_V1": pathlib.Path(primer_scheme_dir, "ZaireEbola", "V2", "ZaireEbola.reference.fasta"),
          "ZaireEbola_V2": pathlib.Path(primer_scheme_dir, "ZaireEbola", "V2", "ZaireEbola.reference.fasta"),
