@@ -543,7 +543,7 @@ if __name__ == "__main__":
                         required=False)
     parser.add_argument("-mi", "--min_len", default=300, type=int, help="The minimum read length allowed",
                         required=False)
-    parser.add_argument("-ma", "--max_len", default=700, type=int, help="The minimum read length allowed",
+    parser.add_argument("-ma", "--max_len", default=500, type=int, help="The minimum read length allowed",
                         required=False)
     parser.add_argument("-rvc", "--rerun_var_call", default=False, action="store_true",
                         help="Only rerun the variant calling and consensus making steps. Requires the pipeline to have "
