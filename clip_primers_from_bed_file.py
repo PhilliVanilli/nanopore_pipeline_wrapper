@@ -131,8 +131,9 @@ def main(infile, outfile, bedfile):
         p2 = find_primer(bed, s.reference_end, '-')
 
         if not is_correctly_paired(p1, p2):
-            print("pairing messed up. primers matched:", p1[2]['Primer_ID'], p2[2]['Primer_ID'])
-
+            print("mismatched primer pair. primers matched:", p1[2]['Primer_ID'], p2[2]['Primer_ID'],
+                  "this is probably two amplicons ligated together")
+            continue
         # if the alignment starts before the end of the primer, trim to that position
         try:
             primer_position = p1[2]['end']
@@ -160,7 +161,7 @@ def main(infile, outfile, bedfile):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trim alignments from an amplicon scheme.')
     parser.add_argument('-in', '--infile', help='Input BAM filename and path')
-    parser.add_argument('-o', '--outfile', help='output BAM filename and path')
+    parser.add_argument('-o', '--outfile', help='output SAM filename and path')
     parser.add_argument('-b', '--bedfile', help='BED file containing the amplicon scheme')
 
     args = parser.parse_args()
