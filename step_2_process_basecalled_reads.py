@@ -543,10 +543,10 @@ if __name__ == "__main__":
     parser.add_argument("-re", "--reference_end", default=False, type=int,
                         help="The end coordinate of the reference sequence for read mapping. Default = full length",
                         required=False)
-    parser.add_argument("-mi", "--min_len", default=300, type=int, help="The minimum read length allowed",
-                        required=False)
-    parser.add_argument("-ma", "--max_len", default=500, type=int, help="The minimum read length allowed",
-                        required=False)
+    parser.add_argument("-mi", "--min_len", type=int, help="The minimum read length allowed = 300 for 400bp amplicon "
+                                                           "design, or 700 for 800bp amplicon design", required=True)
+    parser.add_argument("-ma", "--max_len", type=int, help="The maximum read length allowed = 500 for 400bp amplicon "
+                                                           "design, or 900 for 800bp amplicon design", required=True)
     parser.add_argument("-rvc", "--rerun_var_call", default=False, action="store_true",
                         help="Only rerun the variant calling and consensus making steps. Requires the pipeline to have "
                              "been run previously", required=False)
