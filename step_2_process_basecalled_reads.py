@@ -315,7 +315,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
         msa_cons = pathlib.Path(sample_folder, sample_name + "_msa_consensus.fasta")
         artic_cons_file = pathlib.Path(sample_folder, f"{sample_name}_consensus_artic.fasta")
-        all_consensus_sequences = pathlib.Path(sample_folder, sample_name + "all_consensus.fasta")
+        all_consensus_sequences = pathlib.Path(sample_folder, sample_name + "_all_consensus.fasta")
 
         os.chdir(sample_folder)
 
