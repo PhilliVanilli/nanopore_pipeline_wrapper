@@ -532,8 +532,8 @@ if __name__ == "__main__":
                              "This file should have three columns: barcode_1,barcode_2,sample_name", required=True)
     parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
                         help="The reference genome and primer scheme to use",
-                        choices=["ChikAsianECSA_V1", "ZikaAsian_V1", "ZaireEbola_V1", "ZaireEbola_V2", "LassaL_V1",
-                                 "LassaS_V1"], required=False)
+                        choices=["ChikAsian_V1", "ChikECSA_V1", "ZikaAsian_V1", "ZaireEbola_V1", "ZaireEbola_V2",
+                                 "LassaL_V1", "LassaS_V1"], required=False)
     parser.add_argument("-m", "--make_index", default=False, action="store_true",
                         help="index the reference if not done previously", required=False)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
