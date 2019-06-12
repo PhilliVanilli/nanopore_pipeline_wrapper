@@ -187,11 +187,8 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     reference_scheme = \
         {"ChikECSA_V1_800": pathlib.Path(primer_scheme_dir, "ChikECSA800", "V1", "ChikECSA800.reference.fasta"),
          "ChikAsian_V1_400": pathlib.Path(primer_scheme_dir, "ChikAsian400", "V1", "ChikAsian400.reference.fasta"),
-         "ZikaAsian_V1":  pathlib.Path(primer_scheme_dir, "ZikaAsian", "V1", "ZikaAsian.reference.fasta"),
-         "ZaireEbola_V1": pathlib.Path(primer_scheme_dir, "ZaireEbola", "V2", "ZaireEbola.reference.fasta"),
-         "ZaireEbola_V2": pathlib.Path(primer_scheme_dir, "ZaireEbola", "V2", "ZaireEbola.reference.fasta"),
-         "LassaL_V1": pathlib.Path(primer_scheme_dir, "LassaL", "V1", "LassaL.reference.fasta"),
-         "LassaS_V1": pathlib.Path(primer_scheme_dir, "LassaS", "V1", "LassaS.reference.fasta")}
+         "ZikaAsian_V1_400": pathlib.Path(primer_scheme_dir, "ZikaAsian400", "V1", "ZikaAsian400.reference.fasta"),
+         }
 
     chosen_ref_scheme = str(reference_scheme[reference])
     chosen_ref_scheme_bed_file = chosen_ref_scheme.replace(".reference.fasta", ".scheme.bed")
@@ -533,8 +530,7 @@ if __name__ == "__main__":
                              "This file should have three columns: barcode_1,barcode_2,sample_name", required=True)
     parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
                         help="The reference genome and primer scheme to use",
-                        choices=["ChikAsian_V1_400", "ChikECSA_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1",
-                                 "ZaireEbola_V1", "ZaireEbola_V2", "LassaL_V1", "LassaS_V1"], required=False)
+                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400"], required=False)
     parser.add_argument("-m", "--make_index", default=False, action="store_true",
                         help="index the reference if not done previously", required=False)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
