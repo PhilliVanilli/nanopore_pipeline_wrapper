@@ -407,7 +407,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         nanopolish_cmd_v11 = f"nanopolish variants " \
             f"--fix-homopolymers -r --snps -o {vcf_file} -w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
             f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
-            f"--min-candidate-frequency=0.2" \
+            f"--min-candidate-frequency=0.3" \
             f"--min-candidate-depth=10 --max-haplotypes=1000000"
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish variant calling using:\n")
