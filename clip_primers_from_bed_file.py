@@ -23,10 +23,18 @@ def read_bed_file(primerset_bed):
 
     out_bedfile = []
     with open(primerset_bed) as csvfile:
-        reader = csv.DictReader(csvfile, dialect='excel-tab', sep=None, engine='python')
+        reader = csv.DictReader(csvfile, dialect='excel-tab')
         for row in reader:
-            # row['direction'] = row['orientation']
-            row['direction'] = row['Primer_ID'].apply(lambda x: "+" if x.split("_")[-1] == "LEFT" else "-")
+            primer_name = row['Primer_ID']
+            orientation = primer_name.split("_")
+            if "LEFT" in orientation:
+                row['direction'] = "+"
+            elif "RIGHT" in orientation:
+                row['direction'] = "-"
+            else:
+                print("could not parse primer name\nexpected either LEFT or RIGHT in name, using '_' as a separator")
+                raise ValueError
+
             row['end'] = int(row['end'])
             row['start'] = int(row['start'])
             out_bedfile.append(row)
@@ -114,7 +122,7 @@ def main(infile, outfile, bedfile):
 
     bed = read_bed_file(bedfile)
     infile = pysam.AlignmentFile(infile, "rb")
-    outfile = pysam.AlignmentFile(outfile, "wh", template=infile)
+    outfile_trimmed = pysam.AlignmentFile(outfile, "wh", template=infile)
     suppl_out = outfile + "_excluded_sequences_as_supplamentary.sam"
     marked_supplamentary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
     primer_mismatch_file = outfile + "_excluded_as_primer_mismatched.sam"
@@ -124,11 +132,11 @@ def main(infile, outfile, bedfile):
 
         # logic - if alignment start site is _before_ but within X bases of  a primer site, trim it off
         if s.is_unmapped:
-            print("%s skipped as unmapped" % (s.query_name))
+            print(f"{s.query_name} skipped as unmapped")
             continue
 
         if s.is_supplementary:
-            print("%s skipped as supplementary" % (s.query_name))
+            print(f"{s.query_name} skipped as supplementary")
             marked_supplamentary.write(s)
             continue
 
@@ -160,7 +168,7 @@ def main(infile, outfile, bedfile):
         if not check_still_matching_bases(s):
             continue
 
-        outfile.write(s)
+        outfile_trimmed.write(s)
 
     print("Finished soft clipping bam file")
 
