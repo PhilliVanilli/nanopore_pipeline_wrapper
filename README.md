@@ -16,6 +16,7 @@ This pipeline assumes that the primer scheme bed files are of a specific format:
  
 with the column headings: "genome", "start", "end", "Primer_ID" and "number"
 start is the start position of the primer, relative to the reference genome, using a zero based index (pos 1 = 0)
+Primer names need to include "LEFT" or "RIGHT", using "_" as a delimeter to refer to Fwd and Rev primers
 
 If you need to use a primer scheme that is not included here, please create an issue on this github page and I will add it to the repo for you
 
