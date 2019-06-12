@@ -23,10 +23,10 @@ def read_bed_file(primerset_bed):
 
     out_bedfile = []
     with open(primerset_bed) as csvfile:
-        reader = csv.DictReader(csvfile, dialect='excel-tab')
+        reader = csv.DictReader(csvfile, dialect='excel-tab', sep=None, engine='python')
         for row in reader:
-            print(row)
-            row['direction'] = row['orientation']
+            # row['direction'] = row['orientation']
+            row['direction'] = row['Primer_ID'].apply(lambda x: "+" if x.split("_")[-1] == "LEFT" else "-")
             row['end'] = int(row['end'])
             row['start'] = int(row['start'])
             out_bedfile.append(row)
@@ -95,7 +95,7 @@ def trim(cigar, s, start_pos, end):
 
 
 def find_primer(bed, ref_pos, direction):
-    closest = min([(abs(p['start'] - ref_pos), p['start'] - ref_pos, p) for p in bed if p['orientation'] == direction],
+    closest = min([(abs(p['start'] - ref_pos), p['start'] - ref_pos, p) for p in bed if p['direction'] == direction],
                   key=itemgetter(0))
     return closest
 
@@ -115,6 +115,10 @@ def main(infile, outfile, bedfile):
     bed = read_bed_file(bedfile)
     infile = pysam.AlignmentFile(infile, "rb")
     outfile = pysam.AlignmentFile(outfile, "wh", template=infile)
+    suppl_out = outfile + "_excluded_sequences_as_supplamentary.sam"
+    marked_supplamentary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
+    primer_mismatch_file = outfile + "_excluded_as_primer_mismatched.sam"
+    marked_primer_missmatch = pysam.AlignmentFile(primer_mismatch_file, "wh", template=infile)
     for s in infile:
         cigar = copy(s.cigartuples)
 
@@ -125,6 +129,7 @@ def main(infile, outfile, bedfile):
 
         if s.is_supplementary:
             print("%s skipped as supplementary" % (s.query_name))
+            marked_supplamentary.write(s)
             continue
 
         p1 = find_primer(bed, s.reference_start, '+')
@@ -133,7 +138,9 @@ def main(infile, outfile, bedfile):
         if not is_correctly_paired(p1, p2):
             print("mismatched primer pair. primers matched:", p1[2]['Primer_ID'], p2[2]['Primer_ID'],
                   "this is probably two amplicons ligated together")
+            marked_primer_missmatch.write(s)
             continue
+
         # if the alignment starts before the end of the primer, trim to that position
         try:
             primer_position = p1[2]['end']

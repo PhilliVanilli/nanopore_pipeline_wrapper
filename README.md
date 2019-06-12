@@ -8,6 +8,17 @@ Several dependencies are noted in the requirements.yml file and are installed au
 external dependencies jvarkit and porechop are bundled with the repo but have specific install steps highlighted below.
 this version of porechop is needed as it has been expanded to allow the 24 combination native borcode set to be used.
 
+This pipeline also requires a "sample_names.csv" to indicate which barcodes correspond to which samples for the demultiplexing step.
+A template of this file is included in the repo.
+
+This pipeline assumes that the primer scheme bed files are of a specific format:
+ tap seperated ".bed" file 
+ 
+with the column headings: "genome", "start", "end", "Primer_ID" and "number"
+start is the start position of the primer, relative to the reference genome, using a zero based index (pos 1 = 0)
+
+If you need to use a primer scheme that is not included here, please create an issue on this github page and I will add it to the repo for you
+
 ## Step 1
 Download and install the 64-bit Python 3.7 version of Miniconda/Anaconda
 
