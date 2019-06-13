@@ -156,7 +156,7 @@ def main(infile, outfile, bedfile):
             if s.reference_start < primer_position:
                 trim(cigar, s, primer_position, 0)
 
-            primer_position = p2[2]['end']
+            primer_position = p2[2]['start']
             # print(f"end {primer_position}\nref end {s.reference_end}")
             if s.reference_end > primer_position:
                 trim(cigar, s, primer_position, 1)
