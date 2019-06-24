@@ -86,59 +86,72 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
         return False
 
 
-def d_freq_lists(dna_list):
+def d_freq_lists(dna_list, n):
     """
 
     :param dna_list: (list) a alist of DNA sequences
+    :param n: (int) length of alignment (ie number of positions)
     :return: (dict) a dictionary of the frequency for each base, for each site in the alignment
     """
-    n = len(dna_list[0])
-    dist_dict = {'A': [0]*n, 'C': [0]*n, 'G': [0]*n, 'T': [0]*n, '-': [0]*n}
-
+    counts_dict = {'A': [0]*n, 'C': [0]*n, 'G': [0]*n, 'T': [0]*n, '-': [0]*n, "N": [0]*n}
+    bases = ["A", "C", "G", "T", "-"]
+    depth_dict = {'non_gap': [0] * n, 'gap': [0] * n}
     total = len(dna_list)
     for seq in dna_list:
         for index, dna in enumerate(seq):
-            dist_dict[dna][index] += 1
+            if dna.upper() not in bases:
+                counts_dict["N"][index] += 1
+            else:
+                counts_dict[dna][index] += 1
+            if dna == "-":
+                depth_dict["gap"][index] += 1
+            else:
+                depth_dict["non_gap"][index] += 1
 
-    for base, freqlist in dist_dict.items():
-        for i, cnt in enumerate(freqlist):
+    for base, countslist in counts_dict.items():
+        for i, cnt in enumerate(countslist):
             frq = round((cnt/total*100), 4)
-            freqlist[i] = frq
-        dist_dict[base] = freqlist
+            countslist[i] = frq
+        counts_dict[base] = countslist
 
-    return dist_dict
+    return counts_dict, depth_dict
 
 
-def consensus_maker(d):
+def consensus_maker(d, min_depth):
     """
     Create a consensus sequence from an alignment
     :param d: (dict) dictionary of an alignment (key = seq name (str): value = aligned sequence (str))
+    :param min_depth: (int) the minimum depth required to call a base in the consensus (otherwise called as "!"
     :return: (str) the consensus sequence
     """
     seq_list = []
     for names, seq in d.items():
         seq_list.append(seq)
 
-    master_profile = d_freq_lists(seq_list)
     seq_length = len(seq_list[0])
+    master_profile, depth_profile = d_freq_lists(seq_list, seq_length)
+
     consensus = ""
     degen = {('A', 'G'): 'R', ('C', 'T'): 'Y', ('A', 'C'): 'M', ('G', 'T'): 'K', ('C', 'G'): 'S', ('A', 'T'): 'W',
              ('A', 'C', 'T'): 'H', ('C', 'G', 'T'): 'B', ('A', 'C', 'G'): 'V', ('A', 'G', 'T'): 'D',
              ('A', 'C', 'G', 'T'): 'N'}
 
     for position in range(seq_length):
-        dct = {base: master_profile[base][position] for base in ['T', 'G', 'C', 'A']}
-        # get the highest frequency value
-        max_freq = max(dct.values())
-        # get the base with the highest frequency value
-        base_with_max_freq = max(dct, key=dct.get)
-        # if multiple bases share the max frequency make a list of them for degeneracy code lookup
-        most_freq_bases = list(sorted(base for base in ['T', 'G', 'C', 'A'] if dct[base] == max_freq))
-        if len(most_freq_bases) == 1:
-            consensus += str(base_with_max_freq)
+        if depth_profile[position] <= min_depth:
+            consensus += str("N")
         else:
-            most_freq_bases = tuple(most_freq_bases)
-            consensus += str(degen[most_freq_bases])
+            dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N']}
+            # get the highest frequency value
+            max_freq = max(dct.values())
+            # get the base with the highest frequency value
+            base_with_max_freq = max(dct, key=dct.get)
+            # if multiple bases share the max frequency make a list of them for degeneracy code lookup
+            most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T'] if dct[base] == max_freq))
+            if len(most_freq_bases) == 1:
+                consensus += str(base_with_max_freq)
+            else:
+                most_freq_bases = tuple(most_freq_bases)
+                consensus += str(degen[most_freq_bases])
 
     return consensus
 
@@ -491,7 +504,10 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
 
         # convert multi fasta alignment to consensus sequence
         fasta_msa_d = fasta_to_dct(msa_fasta)
-        cons = consensus_maker(fasta_msa_d)
+
+        # set minimum depth for calling a postion in the consensus sequence
+        min_depth = 10
+        cons = consensus_maker(fasta_msa_d, min_depth)
         with open(msa_cons, 'w') as handle:
             handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
 
