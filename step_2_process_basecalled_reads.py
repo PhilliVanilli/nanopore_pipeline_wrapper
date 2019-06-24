@@ -506,7 +506,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
         fasta_msa_d = fasta_to_dct(msa_fasta)
 
         # set minimum depth for calling a postion in the consensus sequence
-        min_depth = 10
+        min_depth = 100
         cons = consensus_maker(fasta_msa_d, min_depth)
         with open(msa_cons, 'w') as handle:
             handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
