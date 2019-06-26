@@ -496,8 +496,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
             cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
 
-            set_min_depth = 10  # default=20
-            set_min_qual = 30  # default=200
+            set_min_depth = 100  # default=200
+            set_min_qual = 200  # default=200
 
             cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
                 f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
