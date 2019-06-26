@@ -177,7 +177,7 @@ def cat_sample_names(barcode, run_name):
     return file_name
 
 
-def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, run_step,
+def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
          rerun_step_only):
 
     # set the primer_scheme directory
@@ -530,7 +530,6 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             fasta_msa_d = fasta_to_dct(msa_fasta)
 
             # set minimum depth for calling a postion in the consensus sequence
-            min_depth = 100
             cons = consensus_maker(fasta_msa_d, min_depth)
             with open(msa_cons, 'w') as handle:
                 handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
@@ -580,6 +579,8 @@ if __name__ == "__main__":
                                                            " design\n = 700 for 800bp amplicon design", required=True)
     parser.add_argument("-ma", "--max_len", type=int, help="The maximum read length allowed:\n = 500 for 400bp amplicon"
                                                            " design\n = 900 for 800bp amplicon design", required=True)
+    parser.add_argument("-d", "--min_depth", type=int, default=100, help="The minimum coverage to call a position in "
+                                                                         "the MSA to consensus", required=False)
     parser.add_argument("--run_step", default=1, type=int, required=False,
                         help="Only rerun the specified step:\n"
                              "--run_step 1 = gather fastqs\n"
@@ -600,8 +601,9 @@ if __name__ == "__main__":
     reference_end = args.reference_end
     min_len = args.min_len
     max_len = args.max_len
+    min_depth = args.min_depth
     run_step = args.run_step
     rerun_step_only = args.rerun_step_only
 
-    main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, run_step,
+    main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
          rerun_step_only)
