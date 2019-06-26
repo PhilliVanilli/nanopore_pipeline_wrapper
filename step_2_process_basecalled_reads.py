@@ -130,6 +130,8 @@ def consensus_maker(d, min_depth):
     seq_list = []
     for names, seq in d.items():
         seq_list.append(seq)
+    if not seq_list:
+        raise IndexError
 
     seq_length = len(seq_list[0])
     master_profile, depth_profile = d_freq_lists(seq_list, seq_length)
@@ -535,7 +537,11 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             fasta_msa_d = fasta_to_dct(msa_fasta)
 
             # set minimum depth for calling a postion in the consensus sequence
-            cons = consensus_maker(fasta_msa_d, min_depth)
+            try:
+                cons = consensus_maker(fasta_msa_d, min_depth)
+            except IndexError as e:
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")
             with open(msa_cons, 'w') as handle:
                 handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
 
