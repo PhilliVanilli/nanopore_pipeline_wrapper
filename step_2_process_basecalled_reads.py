@@ -189,7 +189,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
     run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
     fastq_dir = pathlib.Path(project_path, "fastq")
-    summary_file_path = pathlib.Path(fastq_dir, "sequencing_summary.txt")
+    sequencing_summary_file = pathlib.Path(fastq_dir, "sequencing_summary.txt")
     sample_names = pathlib.Path(sample_names).absolute()
     demultipled_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
@@ -282,7 +282,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         print(f"\nrunning: nanopolish index on fast5/fastq files")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish index on fast5/fastq files\n")
-        nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file} "
+            if not sequencing_summary_file.is_file():
+                handle.write(f"\nSequencing summary file not found")
+                nanopolish_index_cmd = f"nanopolish index -d {fast5_dir} {master_reads_file} "
+            else:
+                nanopolish_index_cmd = f"nanopolish index -s {sequencing_summary_file} -d {fast5_dir} " \
+                    f"{master_reads_file} "
         try_except_exit_on_fail(nanopolish_index_cmd)
         if not rerun_step_only:
             run_step = 4
