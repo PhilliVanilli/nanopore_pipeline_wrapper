@@ -576,8 +576,9 @@ if __name__ == "__main__":
                                                            "design, or 700 for 800bp amplicon design", required=True)
     parser.add_argument("-ma", "--max_len", type=int, help="The maximum read length allowed = 500 for 400bp amplicon "
                                                            "design, or 900 for 800bp amplicon design", required=True)
-    parser.add_argument("-rs", "--run_step", default=1, help="Only rerun the specified step", required=False)
-    parser.add_argument("-rso", "--rerun_step_only", default=False, action="store_true",
+    parser.add_argument("-runs", "--run_step", default=1, type=int, help="Only rerun the specified step",
+                        required=False)
+    parser.add_argument("-runso", "--rerun_step_only", default=False, action="store_true",
                         help="Only rerun the specified step", required=False)
 
     args = parser.parse_args()
