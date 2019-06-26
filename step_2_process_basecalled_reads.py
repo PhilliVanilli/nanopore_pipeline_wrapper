@@ -69,7 +69,6 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
     output_fastq = pathlib.Path(fastq_outpath, fastq_name)
 
     all_fastqs = list(fastq_path.glob("*.fastq"))
-    summary_file_location = pathlib.Path(fastq_path, "sequencing_summary.txt")
 
     with open(output_fastq, 'w') as handle:
         for fastq in all_fastqs:
@@ -81,7 +80,7 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
                     SeqIO.write([record], handle, "fastq")
 
     if output_fastq.is_file():
-        return summary_file_location
+        return True
     else:
         return False
 
@@ -137,7 +136,7 @@ def consensus_maker(d, min_depth):
              ('A', 'C', 'G', 'T'): 'N'}
 
     for position in range(seq_length):
-        if depth_profile[position] <= min_depth:
+        if depth_profile["non_gap"][position] <= min_depth:
             consensus += str("N")
         else:
             dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N']}
@@ -174,7 +173,9 @@ def cat_sample_names(barcode, run_name):
     return file_name
 
 
-def main(project_path, sample_names, reference, make_index, ref_start, ref_end, min_len, max_len, rerun_var_call):
+def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, run_step,
+         rerun_step_only):
+
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
     primer_scheme_dir = pathlib.Path(script_folder, "primer-schemes")
@@ -184,6 +185,7 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
     fastq_dir = pathlib.Path(project_path, "fastq")
+    summary_file_path = pathlib.Path(fastq_dir, "sequencing_summary.txt")
     sample_names = pathlib.Path(sample_names).absolute()
     demultipled_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
@@ -217,18 +219,23 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
     with open(log_file, "a") as handle:
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
-    if not rerun_var_call:
+    if run_step == 1:
         # gather all fastq's into one file and all sequencing_summary.txt's into one file
         print(f"\nrunning: collecting all fastq files into one file")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: collecting all fastq files into one file")
-        summary_file_path = gather_fastqs(fastq_dir, run_name, max_len, min_len)
-        if not summary_file_path:
+        gather_fastq_status = gather_fastqs(fastq_dir, run_name, max_len, min_len)
+        if not gather_fastq_status:
             print("gathering fastq files failed, concatenated fastq file was not found")
             with open(log_file, "a") as handle:
                 handle.write("gathering fastq files failed, concatenated fastq file was not found\nexiting")
             sys.exit("exiting")
+        if not rerun_step_only:
+            run_step = 2
+        else:
+            sys.exit("Run step only completed, exiting")
 
+    if run_step == 2:
         # demultiplex with porchop
         print(f"\nrunning: porechop demultiplexing")
         with open(log_file, "a") as handle:
@@ -261,35 +268,42 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
                 new_file = pathlib.Path(path, new_name)
                 os.rename(str(file), new_file)
 
+        if not rerun_step_only:
+            run_step = 3
+        else:
+            sys.exit("Run step only completed, exiting")
+
+    if run_step == 3:
         # index concatenated fastq with nanopolish
         print(f"\nrunning: nanopolish index on fast5/fastq files")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: nanopolish index on fast5/fastq files\n")
         nanopolish_index_cmd = f"nanopolish index -s {summary_file_path} -d {fast5_dir} {master_reads_file} "
         try_except_exit_on_fail(nanopolish_index_cmd)
-
-    # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
-    sample_names_df = pd.read_csv(sample_names, sep=None, keep_default_na=False, na_values=['NA'], engine="python")
-    sample_names_df['barcode_1'] = sample_names_df['barcode_1'].apply(lambda x: cat_sample_names(x, run_name))
-    sample_names_df['barcode_2'] = sample_names_df['barcode_2'].apply(lambda x: cat_sample_names(x, run_name))
-    sample_names_dict = sample_names_df.set_index('sample_name').T.to_dict(orient='list')
-
-    all_sample_files = []
-    for sample_name, [barcode_1, barcode_2] in sample_names_dict.items():
-        sample_dir = pathlib.Path(sample_folder, sample_name)
-        if not sample_dir.exists():
-            pathlib.Path(sample_dir).mkdir(mode=0o777, parents=True, exist_ok=True)
-
-        barcode_1_file = pathlib.Path(demultipled_folder, barcode_1)
-        if barcode_2 == " ":
-            barcode_2_file = ""
+        if not rerun_step_only:
+            run_step = 4
         else:
-            barcode_2_file = pathlib.Path(demultipled_folder, barcode_2)
+            sys.exit("Run step only completed, exiting")
 
-        cat_outfile = pathlib.Path(sample_dir, f"{sample_name}.fastq")
-        all_sample_files.append(cat_outfile)
+    if run_step == 4:
+        # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
+        sample_names_df = pd.read_csv(sample_names, sep=None, keep_default_na=False, na_values=['NA'], engine="python")
+        sample_names_df['barcode_1'] = sample_names_df['barcode_1'].apply(lambda x: cat_sample_names(x, run_name))
+        sample_names_df['barcode_2'] = sample_names_df['barcode_2'].apply(lambda x: cat_sample_names(x, run_name))
+        sample_names_dict = sample_names_df.set_index('sample_name').T.to_dict(orient='list')
 
-        if not rerun_var_call:
+        for sample_name, [barcode_1, barcode_2] in sample_names_dict.items():
+            sample_dir = pathlib.Path(sample_folder, sample_name)
+            if not sample_dir.exists():
+                pathlib.Path(sample_dir).mkdir(mode=0o777, parents=True, exist_ok=True)
+
+            barcode_1_file = pathlib.Path(demultipled_folder, barcode_1)
+            if barcode_2 == " ":
+                barcode_2_file = ""
+            else:
+                barcode_2_file = pathlib.Path(demultipled_folder, barcode_2)
+
+            cat_outfile = pathlib.Path(sample_dir, f"{sample_name}.fastq")
             cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
             print(cat_cmd)
             run = try_except_continue_on_fail(cat_cmd)
@@ -299,236 +313,242 @@ def main(project_path, sample_names, reference, make_index, ref_start, ref_end, 
                     handle.write("\nmissing one or more demultiplexed files for this sample\n")
                 continue
 
-    if make_index:
+        if not rerun_step_only:
+            run_step = 5
+        else:
+            sys.exit("Run step only completed, exiting")
+
+    if run_step == 5:
         make_index_cmd = f"bwa index {chosen_ref_scheme}"
         try_except_exit_on_fail(make_index_cmd)
 
-    for sample_fastq in all_sample_files:
-        if not sample_fastq.is_file():
-            print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
+        all_sample_files = pathlib.Path(sample_folder).glob("*/*.fastq")
+        for sample_fastq in all_sample_files:
+            if not sample_fastq.is_file():
+                print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
+                with open(log_file, "a") as handle:
+                    handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
+                continue
+            sample_name = pathlib.Path(sample_fastq).stem
+            sample_folder = pathlib.Path(sample_fastq).parent
+            sam_name = pathlib.Path(sample_folder, sample_name + "_mapped.sam")
+            bam_file = pathlib.Path(sample_folder, sample_name + "_mapped.bam")
+            bam_file_sorted = pathlib.Path(sample_folder, sample_name + ".sorted.bam")
+            trimmed_sam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.sam")
+            trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.bam")
+            sorted_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped_sorted.bam")
+            rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
+            vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
+            nanopolish_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_nanopolish.fasta")
+            bcftools_vcf_file = pathlib.Path(sample_folder, sample_name + "_bcftools.vcf")
+            bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
+            msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
+            msa_cons = pathlib.Path(sample_folder, sample_name + "_msa_consensus.fasta")
+            artic_cons_file = pathlib.Path(sample_folder, f"{sample_name}_consensus_artic.fasta")
+            all_consensus_sequences = pathlib.Path(sample_folder, sample_name + "_all_consensus.fasta")
+
+            os.chdir(sample_folder)
+
+            # run read mapping using bwa
+            print(f"\nrunning: bwa read mapping")
+            bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} 2>&1 | tee -a {log_file}"
             with open(log_file, "a") as handle:
-                handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
-            continue
-        sample_name = pathlib.Path(sample_fastq).stem
-        sample_folder = pathlib.Path(sample_fastq).parent
-        sam_name = pathlib.Path(sample_folder, sample_name + "_mapped.sam")
-        bam_file = pathlib.Path(sample_folder, sample_name + "_mapped.bam")
-        bam_file_sorted = pathlib.Path(sample_folder, sample_name + ".sorted.bam")
-        trimmed_sam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.sam")
-        trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped.bam")
-        sorted_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".sorted.primerclipped_sorted.bam")
-        rename_trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primertrimmed.sorted.bam")
-        vcf_file = pathlib.Path(sample_folder, sample_name + "_polished.vcf")
-        nanopolish_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_nanopolish.fasta")
-        bcftools_vcf_file = pathlib.Path(sample_folder, sample_name + "_bcftools.vcf")
-        bcftools_cons_file = pathlib.Path(sample_folder, sample_name + "_consensus_bcftools.fasta")
-        msa_fasta = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
-        msa_cons = pathlib.Path(sample_folder, sample_name + "_msa_consensus.fasta")
-        artic_cons_file = pathlib.Path(sample_folder, f"{sample_name}_consensus_artic.fasta")
-        all_consensus_sequences = pathlib.Path(sample_folder, sample_name + "_all_consensus.fasta")
+                handle.write(f"\nrunning: bwa read mapping\n")
+                handle.write(f"{bwa_cmd}\n")
+            run = try_except_continue_on_fail(bwa_cmd)
+            if not run:
+                continue
 
-        os.chdir(sample_folder)
+            # convert sam to bam
+            print(f"\nrunning: sam to bam conversion")
+            sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sam to bam conversion\n")
+                handle.write(f"{sam_bam_cmd}\n")
+            run = try_except_continue_on_fail(sam_bam_cmd)
+            if not run:
+                continue
 
-        # run read mapping using bwa
-        print(f"\nrunning: bwa read mapping")
-        bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} 2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: bwa read mapping\n")
-            handle.write(f"{bwa_cmd}\n")
-        run = try_except_continue_on_fail(bwa_cmd)
-        if not run:
-            continue
+            # sort bam file
+            print(f"\nrunning: sorting bam file")
+            sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sorting bam file\n")
+                handle.write(f"{sort_sam_cmd}\n")
+            run = try_except_continue_on_fail(sort_sam_cmd)
+            if not run:
+                continue
 
-        # convert sam to bam
-        print(f"\nrunning: sam to bam conversion")
-        sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file} 2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: sam to bam conversion\n")
-            handle.write(f"{sam_bam_cmd}\n")
-        run = try_except_continue_on_fail(sam_bam_cmd)
-        if not run:
-            continue
+            # index bam file
+            print(f"\nrunning: indexing bam file")
+            index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: indexing bam file\n")
+                handle.write(f"{index_bam_cmd}\n")
+            run = try_except_continue_on_fail(index_bam_cmd)
+            if not run:
+                continue
 
-        # sort bam file
-        print(f"\nrunning: sorting bam file")
-        sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: sorting bam file\n")
-            handle.write(f"{sort_sam_cmd}\n")
-        run = try_except_continue_on_fail(sort_sam_cmd)
-        if not run:
-            continue
+            # remove primer sequences with custom script
+            print(f"\nrunning: trim primer sequences from bam file")
+            trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
+            trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
+                f"-b {chosen_ref_scheme_bed_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
+                handle.write(f"{trim_primer}\n")
+            run = try_except_continue_on_fail(trim_primer)
+            if not run:
+                continue
 
-        # index bam file
-        print(f"\nrunning: indexing bam file")
-        index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: indexing bam file\n")
-            handle.write(f"{index_bam_cmd}\n")
-        run = try_except_continue_on_fail(index_bam_cmd)
-        if not run:
-            continue
+            # convert sam to bam
+            print(f"\nrunning: sam to bam conversion of trimmed file")
+            sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sam to bam conversion\n")
+                handle.write(f"{sam_bam_cmd}\n")
+            run = try_except_continue_on_fail(sam_bam_cmd)
+            if not run:
+                continue
 
-        # remove primer sequences with custom script
-        print(f"\nrunning: trim primer sequences from bam file")
-        trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
-        trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
-            f"-b {chosen_ref_scheme_bed_file} 2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
-            handle.write(f"{trim_primer}\n")
-        run = try_except_continue_on_fail(trim_primer)
-        if not run:
-            continue
+            # sort bam file
+            print(f"\nrunning: sorting bam file")
+            sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
+                f"2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sorting bam file\n")
+                handle.write(f"{sort_sam_cmd}\n")
+            run = try_except_continue_on_fail(sort_sam_cmd)
+            if not run:
+                continue
 
-        # convert sam to bam
-        print(f"\nrunning: sam to bam conversion of trimmed file")
-        sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: sam to bam conversion\n")
-            handle.write(f"{sam_bam_cmd}\n")
-        run = try_except_continue_on_fail(sam_bam_cmd)
-        if not run:
-            continue
+            # index trimmed bam file
+            print(f"\nrunning: indexing bam file")
+            index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: indexing bam file\n")
+                handle.write(f"{index_bam_cmd}\n")
+            run = try_except_continue_on_fail(index_bam_cmd)
+            if not run:
+                continue
 
-        # sort bam file
-        print(f"\nrunning: sorting bam file")
-        sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
-            f"2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: sorting bam file\n")
-            handle.write(f"{sort_sam_cmd}\n")
-        run = try_except_continue_on_fail(sort_sam_cmd)
-        if not run:
-            continue
+            # run nanopolish
+            print(f"\nrunning: nanopolish variant calling")
+            nanopolish_cmd_v11 = f"nanopolish variants  -r --snps -o {vcf_file} " \
+                f"-w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
+                f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
+                f"--min-candidate-frequency=0.3" \
+                f"--min-candidate-depth=10 --max-haplotypes=1000000"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: nanopolish variant calling using:\n")
+                handle.write(f"{nanopolish_cmd_v11}\n")
 
-        # index trimmed bam file
-        print(f"\nrunning: indexing bam file")
-        index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: indexing bam file\n")
-            handle.write(f"{index_bam_cmd}\n")
-        run = try_except_continue_on_fail(index_bam_cmd)
-        if not run:
-            continue
+            run = try_except_continue_on_fail(nanopolish_cmd_v11)
+            if not run:
+                continue
 
-        # run nanopolish
-        print(f"\nrunning: nanopolish variant calling")
-        nanopolish_cmd_v11 = f"nanopolish variants  -r --snps -o {vcf_file} " \
-            f"-w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
-            f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
-            f"--min-candidate-frequency=0.3" \
-            f"--min-candidate-depth=10 --max-haplotypes=1000000"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: nanopolish variant calling using:\n")
-            handle.write(f"{nanopolish_cmd_v11}\n")
+            # make nanopolish consensus
+            print(f"\nrunning: making consensuses sequence from nanopolish")
+            consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
+                f"{nanopolish_cons_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: making consensuses sequence from from nanopolish using:\n")
+                handle.write(f"{consensus_cmd}\n")
+            run = try_except_continue_on_fail(consensus_cmd)
+            if not run:
+                continue
 
-        run = try_except_continue_on_fail(nanopolish_cmd_v11)
-        if not run:
-            continue
+            # rename the fasta header to the sample name
+            rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
 
-        # make nanopolish consensus
-        print(f"\nrunning: making consensuses sequence from nanopolish")
-        consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
-            f"{nanopolish_cons_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from from nanopolish using:\n")
-            handle.write(f"{consensus_cmd}\n")
-        run = try_except_continue_on_fail(consensus_cmd)
-        if not run:
-            continue
+            # make bcftools consensus
+            print(f"\nrunning: making consensuses sequence from bcftools")
+            min_base_qual = 30  # default=13
+            p_val_of_variant = 0.2  # default=0.5
+            bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} " \
+                f"{sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz " \
+                f"-o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+            bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+            bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
+                f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
+                handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
+            run = try_except_continue_on_fail(bcf_vcf_cmd)
+            if not run:
+                continue
+            run = try_except_continue_on_fail(bcf_index_cmd)
+            if not run:
+                continue
+            run = try_except_continue_on_fail(bcf_cons_cmd)
+            if not run:
+                continue
 
-        # rename the fasta header to the sample name
-        rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
+            # rename the fasta header to the sample name
+            rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
 
-        # make bcftools consensus
-        print(f"\nrunning: making consensuses sequence from bcftools")
-        min_base_qual = 30  # default=13
-        p_val_of_variant = 0.2  # default=0.5
-        bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} " \
-            f"{sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz " \
-            f"-o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-        bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-        bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} -o {bcftools_cons_file} " \
-            f"2>&1 | tee -a {log_file}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
-            handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
-        run = try_except_continue_on_fail(bcf_vcf_cmd)
-        if not run:
-            continue
-        run = try_except_continue_on_fail(bcf_index_cmd)
-        if not run:
-            continue
-        run = try_except_continue_on_fail(bcf_cons_cmd)
-        if not run:
-            continue
+            # make artic-ebov consensus
+            print(f"\nrunning: making consensuses sequence from artic_ebov method")
+            shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
+            cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
 
-        # rename the fasta header to the sample name
-        rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
+            set_min_depth = 10  # default=20
+            set_min_qual = 30  # default=200
 
-        # make artic-ebov consensus
-        print(f"\nrunning: making consensuses sequence from artic_ebov method")
-        shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
-        cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
+            cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
+                f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
+                handle.write(f"{cons_cmd}\n")
+            run = try_except_continue_on_fail(cons_cmd)
+            if not run:
+                continue
 
-        set_min_depth = 10  # default=20
-        set_min_qual = 30  # default=200
+            # rename the fasta header to the sample name
+            rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
 
-        cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
-            handle.write(f"{cons_cmd}\n")
-        run = try_except_continue_on_fail(cons_cmd)
-        if not run:
-            continue
+            # convert bam file to a mutli fasta alignment
+            print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
 
-        # rename the fasta header to the sample name
-        rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
+            sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
+            msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} " \
+                f"{sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
+            print(msa_from_bam)
 
-        # convert bam file to a mutli fasta alignment
-        print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
+                handle.write(f"{msa_from_bam}\n")
+            run = try_except_continue_on_fail(msa_from_bam)
+            if not run:
+                continue
 
-        sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
-        msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} " \
-            f"{sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
-        print(msa_from_bam)
+            # convert multi fasta alignment to consensus sequence
+            fasta_msa_d = fasta_to_dct(msa_fasta)
 
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
-            handle.write(f"{msa_from_bam}\n")
-        run = try_except_continue_on_fail(msa_from_bam)
-        if not run:
-            continue
+            # set minimum depth for calling a postion in the consensus sequence
+            min_depth = 100
+            cons = consensus_maker(fasta_msa_d, min_depth)
+            with open(msa_cons, 'w') as handle:
+                handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
 
-        # convert multi fasta alignment to consensus sequence
-        fasta_msa_d = fasta_to_dct(msa_fasta)
+            # add all consensus seqs into one file
+            concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} {msa_cons} " \
+                f"{artic_cons_file} > {all_consensus_sequences}"
+            run = try_except_continue_on_fail(concat_consensus_cmd)
+            if not run:
+                pass
 
-        # set minimum depth for calling a postion in the consensus sequence
-        min_depth = 100
-        cons = consensus_maker(fasta_msa_d, min_depth)
-        with open(msa_cons, 'w') as handle:
-            handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
+            # plot depth and quality for sample
+            plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
+            plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
+                f"-n {sample_name} 2>&1 | tee -a {log_file}"
+            run = try_except_continue_on_fail(plot_cmd)
+            if not run:
+                continue
 
-        # add all consensus seqs into one file
-        concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} {msa_cons} " \
-            f"{artic_cons_file} > {all_consensus_sequences}"
-        run = try_except_continue_on_fail(concat_consensus_cmd)
-        if not run:
-            pass
-
-        # plot depth and quality for sample
-        plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
-        plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            f"-n {sample_name} 2>&1 | tee -a {log_file}"
-        run = try_except_continue_on_fail(plot_cmd)
-        if not run:
-            continue
-
-        print(f"Completed processing sample: {sample_name}")
-        with open(log_file, "a") as handle:
-            handle.write(f"\n\n__________________\nCompleted processing sample: {sample_name}\n\n__________________\n")
+            print(f"Completed processing sample: {sample_name}")
+            with open(log_file, "a") as handle:
+                handle.write(f"\n\n________________\nCompleted processing sample: {sample_name}\n\n________________\n")
 
     print("sample processing completed")
     with open(log_file, "a") as handle:
@@ -547,8 +567,6 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
                         help="The reference genome and primer scheme to use",
                         choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400"], required=False)
-    parser.add_argument("-m", "--make_index", default=False, action="store_true",
-                        help="index the reference if not done previously", required=False)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
                         help="The start coordinate of the reference sequence for read mapping", required=False)
     parser.add_argument("-re", "--reference_end", default=False, type=int,
@@ -558,21 +576,21 @@ if __name__ == "__main__":
                                                            "design, or 700 for 800bp amplicon design", required=True)
     parser.add_argument("-ma", "--max_len", type=int, help="The maximum read length allowed = 500 for 400bp amplicon "
                                                            "design, or 900 for 800bp amplicon design", required=True)
-    parser.add_argument("-rvc", "--rerun_var_call", default=False, action="store_true",
-                        help="Only rerun the variant calling and consensus making steps. Requires the pipeline to have "
-                             "been run previously", required=False)
+    parser.add_argument("-rs", "--run_step", default=1, help="Only rerun the specified step", required=False)
+    parser.add_argument("-rso", "--rerun_step_only", default=False, action="store_true",
+                        help="Only rerun the specified step", required=False)
 
     args = parser.parse_args()
 
     project_path = args.project_path
     sample_names = args.sample_names
     reference = args.reference
-    make_index = args.make_index
     reference_start = args.reference_start
     reference_end = args.reference_end
     min_len = args.min_len
     max_len = args.max_len
-    rerun_var_call = args.rerun_var_call
+    run_step = args.run_step
+    rerun_step_only = args.rerun_step_only
 
-    main(project_path, sample_names, reference, make_index, reference_start, reference_end, min_len, max_len,
-         rerun_var_call)
+    main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, run_step,
+         rerun_step_only)
