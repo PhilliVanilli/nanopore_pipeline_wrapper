@@ -14,6 +14,10 @@ from Bio import SeqIO
 __author__ = 'Colin Anthony'
 
 
+class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter):
+    pass
+
+
 def try_except_exit_on_fail(cmd):
     try:
         subprocess.call(cmd, shell=True)
@@ -557,12 +561,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process raw nanopore reads to fasta consensus sequences",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+                                     formatter_class=Formatter)
 
     parser.add_argument("-in", "--project_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the directory containing the 'fast5' and 'fastq' folders ", required=True)
     parser.add_argument("-s", "--sample_names", default=argparse.SUPPRESS, type=str,
-                        help="The csv file with the sample names and corresponding barcode combinations"
+                        help="The csv file with the sample names and corresponding barcode combinations\n"
                              "This file should have three columns: barcode_1,barcode_2,sample_name", required=True)
     parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
                         help="The reference genome and primer scheme to use",
@@ -572,13 +576,19 @@ if __name__ == "__main__":
     parser.add_argument("-re", "--reference_end", default=False, type=int,
                         help="The end coordinate of the reference sequence for read mapping. Default = full length",
                         required=False)
-    parser.add_argument("-mi", "--min_len", type=int, help="The minimum read length allowed = 300 for 400bp amplicon "
-                                                           "design, or 700 for 800bp amplicon design", required=True)
-    parser.add_argument("-ma", "--max_len", type=int, help="The maximum read length allowed = 500 for 400bp amplicon "
-                                                           "design, or 900 for 800bp amplicon design", required=True)
-    parser.add_argument("-runs", "--run_step", default=1, type=int, help="Only rerun the specified step",
-                        required=False)
-    parser.add_argument("-runso", "--rerun_step_only", default=False, action="store_true",
+    parser.add_argument("-mi", "--min_len", type=int, help="The minimum read length allowed:\n = 300 for 400bp amplicon"
+                                                           " design\n = 700 for 800bp amplicon design", required=True)
+    parser.add_argument("-ma", "--max_len", type=int, help="The maximum read length allowed:\n = 500 for 400bp amplicon"
+                                                           " design\n = 900 for 800bp amplicon design", required=True)
+    parser.add_argument("--run_step", default=1, type=int, required=False,
+                        help="Only rerun the specified step:\n"
+                             "--run_step 1 = gather fastqs\n"
+                             "--run_step 2 = demultiplex\n"
+                             "--run_step 3 = index master fastq file\n"
+                             "--run_step 4 = concatenate demultiplexed files into sample files\n"
+                             "--run_step 5 = run read mapping and all the variant calling steps on each sample\n")
+
+    parser.add_argument("--rerun_step_only", default=False, action="store_true",
                         help="Only rerun the specified step", required=False)
 
     args = parser.parse_args()
