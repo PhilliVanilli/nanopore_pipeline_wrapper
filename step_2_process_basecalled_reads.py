@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import collections
 import datetime
+import math
 from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
@@ -253,17 +254,91 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 handle.write(f"could not find the concatenated fastq, {master_reads_file}\nexiting")
             sys.exit("exiting")
 
-        demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {master_reads_file} " \
-                          f"--discard_middle " \
-                          f"--require_two_barcodes " \
-                          f"--barcode_threshold 80 " \
-                          f"--threads 4 " \
-                          f"--check_reads 10000 " \
-                          f"--barcode_diff 5 " \
-                          f"--barcode_dir {demultipled_folder} " \
-                          f"> {master_reads_file}.demultiplexreport.txt"
+        # get number of sequences and split into subfiles if too large
+        max_fastq_size_porechop = 50000 # 1000000
+        grep_cmd = f"grep -c '^@' {master_reads_file}"
+        try:
+            fastq_entries = int(subprocess.check_output(grep_cmd, shell=True).decode(sys.stdout.encoding).strip())
+        except subprocess.CalledProcessError as e:
+            with open(log_file, "a") as handle:
+                handle.write(f"could not grep the fastq file, error was:\n{e}\nexiting")
+            sys.exit("exiting")
 
-        try_except_exit_on_fail(demultiplex_cmd)
+        num_of_chunks = math.ceil(fastq_entries / max_fastq_size_porechop)
+        if num_of_chunks > 1.0:
+            with open(log_file, "a") as handle:
+                handle.write(f"\nexperiment run fastq file too large for porechop\nchunking file into parts\n")
+            # file is possibly too large for system memory to run porechop, chunk into parts
+            split_into_parts_by_x_lines = int(fastq_entries / num_of_chunks) * 4
+
+            split_cmd = f"split --additional-suffix _temp_chunk.fastq -l {split_into_parts_by_x_lines} " \
+                f"{master_reads_file} {str(master_reads_file.stem).replace('all', 'all_')}"
+
+            try_except_exit_on_fail(split_cmd)
+
+            # for each chunk, do porechop
+            colleted_temp_folders = []
+            for file in pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"):
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nrunning porechop on chunk: {file}\n")
+                tmp_demix_folder = pathlib.Path(demultipled_folder, file.stem)
+                tmp_demix_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
+                colleted_temp_folders.append(tmp_demix_folder)
+                demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {file} " \
+                                  f"--discard_middle " \
+                                  f"--require_two_barcodes " \
+                                  f"--barcode_threshold 80 " \
+                                  f"--threads 4 " \
+                                  f"--check_reads 10000 " \
+                                  f"--barcode_diff 5 " \
+                                  f"--barcode_dir {tmp_demix_folder} " \
+                                  f"> {file}.demultiplexreport.txt"
+
+                with open(log_file, "a") as handle:
+                    handle.write(f"\n{demultiplex_cmd}\n")
+
+                try_except_exit_on_fail(demultiplex_cmd)
+
+            # collect file path for each barcode from each demultiplexed chunk
+            collect_demultiplexed_files = collections.defaultdict(list)
+            for folder in pathlib.Path(demultipled_folder).glob(f"*temp_chunk"):
+                for file in folder.glob("*.fastq"):
+                    barcode_id = file.stem
+                    collect_demultiplexed_files[barcode_id].append(file)
+
+            # concatenate barcode file from each chunk into one file
+            with open(log_file, "a") as handle:
+                handle.write(f"\nconcatenating porechop demultiplexed files from each chunk\n")
+            for barcode, file_list in collect_demultiplexed_files.items():
+                files_to_cat = " ".join(file_list)
+                barcode_outfile = pathlib.Path(demultipled_folder, f"{barcode}.fastq")
+                cat_cmd = f"cat {files_to_cat} > {barcode_outfile}"
+                try_except_exit_on_fail(cat_cmd)
+
+            # remove each chunked file and the temp demultiplex folder and files from each chunk
+            with open(log_file, "a") as handle:
+                handle.write(f"\nremoving chunked files and temp demultiplexed files from each chunk\n")
+            for folder in colleted_temp_folders:
+                shutil.rmtree(str(folder))
+            for file in pathlib.Path(project_path).glob(f"{master_reads_file.stem}.*temp_chunk.fastq"):
+                os.unlink(str(file))
+
+        else:
+            # file size within limit, no need to chunk
+            demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {master_reads_file} " \
+                              f"--discard_middle " \
+                              f"--require_two_barcodes " \
+                              f"--barcode_threshold 80 " \
+                              f"--threads 4 " \
+                              f"--check_reads 10000 " \
+                              f"--barcode_diff 5 " \
+                              f"--barcode_dir {demultipled_folder} " \
+                              f"> {master_reads_file}.demultiplexreport.txt"
+
+            with open(log_file, "a") as handle:
+                handle.write(f"\n{demultiplex_cmd}\n")
+
+            try_except_exit_on_fail(demultiplex_cmd)
 
         # add run name to each demultiplexed file
         for file in list(demultipled_folder.glob("*.fastq")):
@@ -308,6 +383,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             if not sample_dir.exists():
                 pathlib.Path(sample_dir).mkdir(mode=0o777, parents=True, exist_ok=True)
 
+            # allow for case where only one barcode was specified per sample.
             barcode_1_file = pathlib.Path(demultipled_folder, barcode_1)
             if barcode_2 == " ":
                 barcode_2_file = ""
@@ -359,6 +435,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             all_consensus_sequences = pathlib.Path(sample_folder, sample_name + "_all_consensus.fasta")
 
             os.chdir(sample_folder)
+
+            with open(log_file, "a") as handle:
+                handle.write(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
 
             # run read mapping using bwa
             print(f"\nrunning: bwa read mapping")
@@ -542,8 +621,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             except IndexError as e:
                 with open(log_file, "a") as handle:
                     handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")
-            with open(msa_cons, 'w') as handle:
-                handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
+            else:
+                with open(msa_cons, 'w') as handle:
+                    handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
 
             # add all consensus seqs into one file
             concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} {msa_cons} " \
