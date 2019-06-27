@@ -255,7 +255,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             sys.exit("exiting")
 
         # get number of sequences and split into subfiles if too large
-        max_fastq_size_porechop = 50000 # 1000000
+        max_fastq_size_porechop = 1000000
         grep_cmd = f"grep -c '^@' {master_reads_file}"
         try:
             fastq_entries = int(subprocess.check_output(grep_cmd, shell=True).decode(sys.stdout.encoding).strip())
