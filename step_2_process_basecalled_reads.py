@@ -536,7 +536,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # convert multi fasta alignment to consensus sequence
             fasta_msa_d = fasta_to_dct(msa_fasta)
 
-            # set minimum depth for calling a postion in the consensus sequence
+            # set minimum depth for calling a position in the consensus sequence
             try:
                 cons = consensus_maker(fasta_msa_d, min_depth)
             except IndexError as e:
