@@ -288,7 +288,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                                   f"--discard_middle " \
                                   f"--require_two_barcodes " \
                                   f"--barcode_threshold 80 " \
-                                  f"--threads 4 " \
+                                  f"--threads 8 " \
                                   f"--check_reads 10000 " \
                                   f"--barcode_diff 5 " \
                                   f"--barcode_dir {tmp_demix_folder} " \
@@ -329,7 +329,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                               f"--discard_middle " \
                               f"--require_two_barcodes " \
                               f"--barcode_threshold 80 " \
-                              f"--threads 4 " \
+                              f"--threads 8 " \
                               f"--check_reads 10000 " \
                               f"--barcode_diff 5 " \
                               f"--barcode_dir {demultipled_folder} " \
