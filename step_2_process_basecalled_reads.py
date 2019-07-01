@@ -181,7 +181,7 @@ def cat_sample_names(barcode, run_name):
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only):
+         rerun_step_only, msa_cons_only):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -521,81 +521,81 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(index_bam_cmd)
             if not run:
                 continue
+            if not msa_cons_only:
+                # run nanopolish
+                print(f"\nrunning: nanopolish variant calling")
+                nanopolish_cmd_v11 = f"nanopolish variants  -r --snps -o {vcf_file} " \
+                    f"-w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
+                    f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
+                    f"--min-candidate-frequency=0.3" \
+                    f"--min-candidate-depth=10 --max-haplotypes=1000000"
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nrunning: nanopolish variant calling using:\n")
+                    handle.write(f"{nanopolish_cmd_v11}\n")
 
-            # run nanopolish
-            print(f"\nrunning: nanopolish variant calling")
-            nanopolish_cmd_v11 = f"nanopolish variants  -r --snps -o {vcf_file} " \
-                f"-w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
-                f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
-                f"--min-candidate-frequency=0.3" \
-                f"--min-candidate-depth=10 --max-haplotypes=1000000"
-            with open(log_file, "a") as handle:
-                handle.write(f"\nrunning: nanopolish variant calling using:\n")
-                handle.write(f"{nanopolish_cmd_v11}\n")
+                run = try_except_continue_on_fail(nanopolish_cmd_v11)
+                if not run:
+                    continue
 
-            run = try_except_continue_on_fail(nanopolish_cmd_v11)
-            if not run:
-                continue
+                # make nanopolish consensus
+                print(f"\nrunning: making consensuses sequence from nanopolish")
+                consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
+                    f"{nanopolish_cons_file}"
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nrunning: making consensuses sequence from from nanopolish using:\n")
+                    handle.write(f"{consensus_cmd}\n")
+                run = try_except_continue_on_fail(consensus_cmd)
+                if not run:
+                    continue
 
-            # make nanopolish consensus
-            print(f"\nrunning: making consensuses sequence from nanopolish")
-            consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
-                f"{nanopolish_cons_file}"
-            with open(log_file, "a") as handle:
-                handle.write(f"\nrunning: making consensuses sequence from from nanopolish using:\n")
-                handle.write(f"{consensus_cmd}\n")
-            run = try_except_continue_on_fail(consensus_cmd)
-            if not run:
-                continue
+                # rename the fasta header to the sample name
+                rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
 
-            # rename the fasta header to the sample name
-            rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
+                # make bcftools consensus
+                print(f"\nrunning: making consensuses sequence from bcftools")
+                min_base_qual = 30  # default=13
+                p_val_of_variant = 0.2  # default=0.5
+                bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} " \
+                    f"{sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz " \
+                    f"-o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+                bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+                bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
+                    f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
+                    handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
+                run = try_except_continue_on_fail(bcf_vcf_cmd)
+                if not run:
+                    continue
+                run = try_except_continue_on_fail(bcf_index_cmd)
+                if not run:
+                    continue
+                run = try_except_continue_on_fail(bcf_cons_cmd)
+                if not run:
+                    continue
 
-            # make bcftools consensus
-            print(f"\nrunning: making consensuses sequence from bcftools")
-            min_base_qual = 30  # default=13
-            p_val_of_variant = 0.2  # default=0.5
-            bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} " \
-                f"{sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz " \
-                f"-o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-            bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-            bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
-                f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
-            with open(log_file, "a") as handle:
-                handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
-                handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
-            run = try_except_continue_on_fail(bcf_vcf_cmd)
-            if not run:
-                continue
-            run = try_except_continue_on_fail(bcf_index_cmd)
-            if not run:
-                continue
-            run = try_except_continue_on_fail(bcf_cons_cmd)
-            if not run:
-                continue
+                # rename the fasta header to the sample name
+                rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
 
-            # rename the fasta header to the sample name
-            rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
+                # make artic-ebov consensus
+                print(f"\nrunning: making consensuses sequence from artic_ebov method")
+                shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
+                cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
 
-            # make artic-ebov consensus
-            print(f"\nrunning: making consensuses sequence from artic_ebov method")
-            shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
-            cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
+                set_min_depth = 100  # default=200
+                set_min_qual = 200  # default=200
 
-            set_min_depth = 100  # default=200
-            set_min_qual = 200  # default=200
+                cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
+                    f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
+                    handle.write(f"{cons_cmd}\n")
+                run = try_except_continue_on_fail(cons_cmd)
+                if not run:
+                    continue
 
-            cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-                f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
-            with open(log_file, "a") as handle:
-                handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
-                handle.write(f"{cons_cmd}\n")
-            run = try_except_continue_on_fail(cons_cmd)
-            if not run:
-                continue
-
-            # rename the fasta header to the sample name
-            rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
+                # rename the fasta header to the sample name
+                rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
 
             # convert bam file to a mutli fasta alignment
             print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
@@ -625,12 +625,13 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 with open(msa_cons, 'w') as handle:
                     handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
 
-            # add all consensus seqs into one file
-            concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} {msa_cons} " \
-                f"{artic_cons_file} > {all_consensus_sequences}"
-            run = try_except_continue_on_fail(concat_consensus_cmd)
-            if not run:
-                pass
+            if not msa_cons_only:
+                # add all consensus seqs into one file
+                concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} {msa_cons} " \
+                    f"{artic_cons_file} > {all_consensus_sequences}"
+                run = try_except_continue_on_fail(concat_consensus_cmd)
+                if not run:
+                    pass
 
             # plot depth and quality for sample
             plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
@@ -682,6 +683,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--rerun_step_only", default=False, action="store_true",
                         help="Only rerun the specified step", required=False)
+    parser.add_argument("-m", "--msa_cons_only", default=False, action="store_true",
+                        help="Only do MSA to consensus sequence for variant calling", required=False)
 
     args = parser.parse_args()
 
@@ -695,6 +698,7 @@ if __name__ == "__main__":
     min_depth = args.min_depth
     run_step = args.run_step
     rerun_step_only = args.rerun_step_only
+    msa_cons_only = args.msa_cons_only
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only)
+         rerun_step_only, msa_cons_only)
