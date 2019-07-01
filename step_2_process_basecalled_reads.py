@@ -181,7 +181,7 @@ def cat_sample_names(barcode, run_name):
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only):
+         rerun_step_only, msa_cons_only, threads):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -288,7 +288,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                                   f"--discard_middle " \
                                   f"--require_two_barcodes " \
                                   f"--barcode_threshold 80 " \
-                                  f"--threads 8 " \
+                                  f"--threads {threads} " \
                                   f"--check_reads 10000 " \
                                   f"--barcode_diff 5 " \
                                   f"--barcode_dir {tmp_demix_folder} " \
@@ -329,7 +329,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                               f"--discard_middle " \
                               f"--require_two_barcodes " \
                               f"--barcode_threshold 80 " \
-                              f"--threads 8 " \
+                              f"--threads {threads} " \
                               f"--check_reads 10000 " \
                               f"--barcode_diff 5 " \
                               f"--barcode_dir {demultipled_folder} " \
@@ -441,7 +441,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
             # run read mapping using bwa
             print(f"\nrunning: bwa read mapping")
-            bwa_cmd = f"bwa mem -t 4 -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} 2>&1 | tee -a {log_file}"
+            bwa_cmd = f"bwa mem -t {threads} -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
+                f"2>&1 | tee -a {log_file}"
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: bwa read mapping\n")
                 handle.write(f"{bwa_cmd}\n")
@@ -525,7 +526,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 # run nanopolish
                 print(f"\nrunning: nanopolish variant calling")
                 nanopolish_cmd_v11 = f"nanopolish variants  -r --snps -o {vcf_file} " \
-                    f"-w '{ref_name}:{ref_start}-{ref_end}' -t 4 --ploidy=1 -v " \
+                    f"-w '{ref_name}:{ref_start}-{ref_end}' -t {threads} --ploidy=1 -v " \
                     f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
                     f"--min-candidate-frequency=0.3" \
                     f"--min-candidate-depth=10 --max-haplotypes=1000000"
@@ -555,9 +556,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 print(f"\nrunning: making consensuses sequence from bcftools")
                 min_base_qual = 30  # default=13
                 p_val_of_variant = 0.2  # default=0.5
-                bcf_vcf_cmd = f"bcftools mpileup --min-BQ {min_base_qual} -Ou -f {chosen_ref_scheme} " \
-                    f"{sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} --ploidy 1 -v -Oz " \
-                    f"-o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+                bcf_vcf_cmd = f"bcftools mpileup --threads {threads} --min-BQ {min_base_qual} -Ou " \
+                    f"-f {chosen_ref_scheme} {sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} " \
+                    f"--ploidy 1 -v -Oz -o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
                 bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
                 bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
                     f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
@@ -585,8 +586,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 set_min_depth = 100  # default=200
                 set_min_qual = 200  # default=200
 
-                cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-                    f"-n {sample_name} -d {set_min_depth} -q {set_min_qual}"
+                cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} " \
+                    f"-b {rename_trimmed_bam_file} -n {sample_name} -d {set_min_depth} -q {set_min_qual}"
                 with open(log_file, "a") as handle:
                     handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
                     handle.write(f"{cons_cmd}\n")
@@ -627,8 +628,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
             if not msa_cons_only:
                 # add all consensus seqs into one file
-                concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} {msa_cons} " \
-                    f"{artic_cons_file} > {all_consensus_sequences}"
+                concat_consensus_cmd = f"cat {chosen_ref_scheme} {nanopolish_cons_file} {bcftools_cons_file} " \
+                    f"{msa_cons} {artic_cons_file} > {all_consensus_sequences}"
                 run = try_except_continue_on_fail(concat_consensus_cmd)
                 if not run:
                     pass
@@ -685,6 +686,8 @@ if __name__ == "__main__":
                         help="Only rerun the specified step", required=False)
     parser.add_argument("-m", "--msa_cons_only", default=False, action="store_true",
                         help="Only do MSA to consensus sequence for variant calling", required=False)
+    parser.add_argument("-t", "--threads", type=int, default=8,
+                        help="The number of threads to use for porechop, bwa, nanopolish etc...", required=False)
 
     args = parser.parse_args()
 
@@ -699,6 +702,7 @@ if __name__ == "__main__":
     run_step = args.run_step
     rerun_step_only = args.rerun_step_only
     msa_cons_only = args.msa_cons_only
+    threads = args.threads
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only)
+         rerun_step_only, msa_cons_only, threads)
