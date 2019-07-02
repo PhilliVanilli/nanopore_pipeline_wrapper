@@ -541,6 +541,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(index_bam_cmd)
             if not run:
                 continue
+
             if not msa_cons_only:
                 # run nanopolish
                 print(f"\nrunning: nanopolish variant calling")
@@ -619,7 +620,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
                 # plot quality for sample
                 plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
-                plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {bcftools_vcf_file} " \
+                plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} " \
                     f"-n {sample_name} 2>&1 | tee -a {log_file}"
                 run = try_except_continue_on_fail(plot_cmd)
                 if not run:
@@ -661,7 +662,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 if not run:
                     pass
 
-            # plot depth and quality for sample
+            # plot depth for sample
             plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
             plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -b {sorted_trimmed_bam_file} " \
                 f"-n {sample_name} 2>&1 | tee -a {log_file}"

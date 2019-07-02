@@ -83,7 +83,7 @@ def main(reference, vcf_file, bamfile, sample_name):
     if vcf_file:
         vcffile = pathlib.Path(vcf_file).absolute()
         vcf_reader = vcf.Reader(open(str(vcffile), 'r'))
-        outfile_qual = pathlib.Path(bamfile.parent, sample_name + "_sequencing_qual.png")
+        outfile_qual = pathlib.Path(vcffile.parent, sample_name + "_sequencing_qual.png")
         seq_qual_by_pos = []
         for record in vcf_reader:
             seq_qual_by_pos.append(record.QUAL)
