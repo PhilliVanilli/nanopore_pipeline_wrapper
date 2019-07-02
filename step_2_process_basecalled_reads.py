@@ -617,6 +617,14 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 # rename the fasta header to the sample name
                 rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
 
+                # plot quality for sample
+                plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
+                plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {bcftools_vcf_file} " \
+                    f"-n {sample_name} 2>&1 | tee -a {log_file}"
+                run = try_except_continue_on_fail(plot_cmd)
+                if not run:
+                    continue
+
             # convert bam file to a mutli fasta alignment
             print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
 

@@ -60,30 +60,37 @@ def plot_qual(qual_list, sample_name, outfile):
 
 def main(reference, vcf_file, bamfile, sample_name):
 
-    # vcffile = pathlib.Path(vcf_file).absolute()
-    bamfile = pathlib.Path(bamfile).absolute()
-    reference = pathlib.Path(reference).absolute()
-    outfile_depth = pathlib.Path(bamfile.parent, sample_name + "_sequencing_depth.png")
-    # outfile_qual = pathlib.Path(bamfile.parent, sample_name + "_sequencing_qual.png")
-    depths = collect_depths(bamfile)
-    seq = list(SeqIO.parse(open(str(reference)), "fasta"))[0]
-    cons = list(seq.seq)
+    if bamfile:
+        bamfile = pathlib.Path(bamfile).absolute()
+        reference = pathlib.Path(reference).absolute()
+        outfile_depth = pathlib.Path(bamfile.parent, sample_name + "_sequencing_depth.png")
 
-    # vcf_reader = vcf.Reader(open(str(vcffile), 'r'))
-    # seq_qual_by_pos = []
-    # for record in vcf_reader:
-    #     seq_qual_by_pos.append(record.QUAL)
-    seq_depth_by_pos = []
-    for n, c in enumerate(cons):
-        try:
-            depth = depths[seq.id][n+1]
+        depths = collect_depths(bamfile)
+        seq = list(SeqIO.parse(open(str(reference)), "fasta"))[0]
+        cons = list(seq.seq)
 
-        except KeyError:
-            depth = 0
-        seq_depth_by_pos.append(depth)
+        seq_depth_by_pos = []
+        for n, c in enumerate(cons):
+            try:
+                depth = depths[seq.id][n+1]
 
-    plot_depth(seq_depth_by_pos, sample_name, outfile_depth)
-    # plot_qual(seq_qual_by_pos, sample_name, outfile_qual)
+            except KeyError:
+                depth = 0
+            seq_depth_by_pos.append(depth)
+
+        plot_depth(seq_depth_by_pos, sample_name, outfile_depth)
+
+    if vcf_file:
+        vcffile = pathlib.Path(vcf_file).absolute()
+        vcf_reader = vcf.Reader(open(str(vcffile), 'r'))
+        outfile_qual = pathlib.Path(bamfile.parent, sample_name + "_sequencing_qual.png")
+        seq_qual_by_pos = []
+        for record in vcf_reader:
+            seq_qual_by_pos.append(record.QUAL)
+        plot_qual(seq_qual_by_pos, sample_name, outfile_qual)
+
+    if not bamfile and not vcf_file:
+        print("no files given, no plots made")
 
 
 if __name__ == "__main__":
@@ -93,8 +100,8 @@ if __name__ == "__main__":
                         help="The reference genome and primer scheme to use", required=True)
     parser.add_argument("-v", "--vcf_file", type=str, default=False,
                         help="The path and name of the vcf file", required=False)
-    parser.add_argument("-b", "--bam_file", default=argparse.SUPPRESS, type=str,
-                        help="The path and name of the sorted, trimmed bam file", required=True)
+    parser.add_argument("-b", "--bam_file", default=False, type=str,
+                        help="The path and name of the sorted, trimmed bam file", required=False)
     parser.add_argument("-n", "--sample_name", type=str, default=argparse.SUPPRESS,
                         help="The sample name", required=True)
 
