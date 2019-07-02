@@ -675,7 +675,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--min_depth", type=int, default=100, help="The minimum coverage to call a position in "
                                                                          "the MSA to consensus", required=False)
     parser.add_argument("--run_step", default=1, type=int, required=False,
-                        help="Only rerun the specified step:\n"
+                        help="Run the pipeline from this steo, to the end:\n"
                              "--run_step 1 = gather fastqs\n"
                              "--run_step 2 = demultiplex\n"
                              "--run_step 3 = index master fastq file\n"
