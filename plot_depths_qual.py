@@ -31,7 +31,7 @@ def plot_depth(depth_list, sample_name, outfile):
 
     x_vals = [x for x in range(len(depth_list))]
     fig, ax = plt.subplots()
-    ax.set_ylabel('Sequence depth')
+    ax.set_ylabel('Sequencing depth')
     ax.set_xlabel('Sequence position')
     ax.set_title(sample_name)
 
@@ -49,7 +49,7 @@ def plot_qual(qual_list, sample_name, outfile):
 
     x_vals = [x for x in range(len(qual_list))]
     fig, ax = plt.subplots()
-    ax.set_ylabel('Sequence quality')
+    ax.set_ylabel('Sequencing quality')
     ax.set_xlabel('Sequence position')
     ax.set_title(sample_name)
 
@@ -60,19 +60,19 @@ def plot_qual(qual_list, sample_name, outfile):
 
 def main(reference, vcf_file, bamfile, sample_name):
 
-    vcffile = pathlib.Path(vcf_file).absolute()
+    # vcffile = pathlib.Path(vcf_file).absolute()
     bamfile = pathlib.Path(bamfile).absolute()
     reference = pathlib.Path(reference).absolute()
     outfile_depth = pathlib.Path(bamfile.parent, sample_name + "_sequencing_depth.png")
-    outfile_qual = pathlib.Path(bamfile.parent, sample_name + "_sequencing_qual.png")
+    # outfile_qual = pathlib.Path(bamfile.parent, sample_name + "_sequencing_qual.png")
     depths = collect_depths(bamfile)
     seq = list(SeqIO.parse(open(str(reference)), "fasta"))[0]
     cons = list(seq.seq)
 
-    vcf_reader = vcf.Reader(open(str(vcffile), 'r'))
-    seq_qual_by_pos = []
-    for record in vcf_reader:
-        seq_qual_by_pos.append(record.QUAL)
+    # vcf_reader = vcf.Reader(open(str(vcffile), 'r'))
+    # seq_qual_by_pos = []
+    # for record in vcf_reader:
+    #     seq_qual_by_pos.append(record.QUAL)
     seq_depth_by_pos = []
     for n, c in enumerate(cons):
         try:
@@ -83,7 +83,7 @@ def main(reference, vcf_file, bamfile, sample_name):
         seq_depth_by_pos.append(depth)
 
     plot_depth(seq_depth_by_pos, sample_name, outfile_depth)
-    plot_qual(seq_qual_by_pos, sample_name, outfile_qual)
+    # plot_qual(seq_qual_by_pos, sample_name, outfile_qual)
 
 
 if __name__ == "__main__":
@@ -91,8 +91,8 @@ if __name__ == "__main__":
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-r", "--reference", type=str, default=argparse.SUPPRESS,
                         help="The reference genome and primer scheme to use", required=True)
-    parser.add_argument("-v", "--vcf_file", type=str, default=argparse.SUPPRESS,
-                        help="The path and name of the vcf file", required=True)
+    parser.add_argument("-v", "--vcf_file", type=str, default=False,
+                        help="The path and name of the vcf file", required=False)
     parser.add_argument("-b", "--bam_file", default=argparse.SUPPRESS, type=str,
                         help="The path and name of the sorted, trimmed bam file", required=True)
     parser.add_argument("-n", "--sample_name", type=str, default=argparse.SUPPRESS,

@@ -10,6 +10,7 @@ import math
 from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
+import matplotlib.pyplot as plt
 
 
 __author__ = 'Colin Anthony'
@@ -160,6 +161,24 @@ def consensus_maker(d, min_depth):
                 consensus += str(degen[most_freq_bases])
 
     return consensus
+
+
+def plot_depth(depth_list, sample_name, outfile):
+
+    x_vals = [x for x in range(len(depth_list))]
+    fig, ax = plt.subplots()
+    ax.set_ylabel('Sequencing depth')
+    ax.set_xlabel('Sequence position')
+    ax.set_title(sample_name)
+
+    plt.plot(x_vals, depth_list)
+
+    w = 6.8
+    h = 4
+    f = plt.gcf()
+    f.set_size_inches(w, h)
+
+    plt.savefig(outfile, ext="png", dpi=300, facecolor="white", bbox_inches="tight")
 
 
 def rename_fasta(fasta_file_name_path, sample_name, cons_type):
@@ -634,13 +653,13 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 if not run:
                     pass
 
-            # # plot depth and quality for sample
-            # plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
-            # plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -b {rename_trimmed_bam_file} " \
-            #     f"-n {sample_name} 2>&1 | tee -a {log_file}"
-            # run = try_except_continue_on_fail(plot_cmd)
-            # if not run:
-            #     continue
+            # plot depth and quality for sample
+            plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
+            plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -b {sorted_trimmed_bam_file} " \
+                f"-n {sample_name} 2>&1 | tee -a {log_file}"
+            run = try_except_continue_on_fail(plot_cmd)
+            if not run:
+                continue
 
             print(f"Completed processing sample: {sample_name}")
             with open(log_file, "a") as handle:
