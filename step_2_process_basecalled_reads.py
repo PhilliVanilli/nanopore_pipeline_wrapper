@@ -160,7 +160,7 @@ def consensus_maker(d, min_depth):
                 most_freq_bases = tuple(most_freq_bases)
                 consensus += str(degen[most_freq_bases])
 
-    return consensus
+    return consensus, depth_profile
 
 
 def plot_depth(depth_list, sample_name, outfile):
@@ -646,13 +646,18 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
             # set minimum depth for calling a position in the consensus sequence
             try:
-                cons = consensus_maker(fasta_msa_d, min_depth)
+                cons, depth_profile = consensus_maker(fasta_msa_d, min_depth)
             except IndexError as e:
                 with open(log_file, "a") as handle:
                     handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")
             else:
                 with open(msa_cons, 'w') as handle:
                     handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
+
+                # plot depth for sample
+                depth_list = depth_profile["non_gap"]
+                depth_outfile = pathlib.Path(sample_folder, sample_name + "_sequencing_depth.png")
+                plot_depth(depth_list, sample_name, depth_outfile)
 
             if not msa_cons_only:
                 # add all consensus seqs into one file
@@ -662,13 +667,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 if not run:
                     pass
 
-            # plot depth for sample
-            plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
-            plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -b {sorted_trimmed_bam_file} " \
-                f"-n {sample_name} 2>&1 | tee -a {log_file}"
-            run = try_except_continue_on_fail(plot_cmd)
-            if not run:
-                continue
+            # plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
+            # plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -b {sorted_trimmed_bam_file} " \
+            #     f"-n {sample_name} 2>&1 | tee -a {log_file}"
+            # run = try_except_continue_on_fail(plot_cmd)
+            # if not run:
+            #     continue
 
             print(f"Completed processing sample: {sample_name}")
             with open(log_file, "a") as handle:
