@@ -133,6 +133,7 @@ def main(infile, outfile, bedfile):
     suppl = 0
 
     for s in infile:
+        total += 1
         cigar = copy(s.cigartuples)
 
         # logic - if alignment start site is _before_ but within X bases of  a primer site, trim it off

@@ -459,7 +459,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 handle.write(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
 
             # run read mapping using bwa
-            print(f"\nrunning: bwa read mapping")
+            print(f"\nrunning: bwa read mapping\n")
             bwa_cmd = f"bwa mem -t {threads} -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
                 f"2>&1 | tee -a {log_file}"
             with open(log_file, "a") as handle:
