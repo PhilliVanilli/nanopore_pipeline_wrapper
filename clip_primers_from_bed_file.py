@@ -127,10 +127,13 @@ def main(infile, outfile, bedfile):
     marked_supplamentary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
     primer_mismatch_file = outfile + "_excluded_as_primer_mismatched.sam"
     marked_primer_missmatch = pysam.AlignmentFile(primer_mismatch_file, "wh", template=infile)
+
+    # set counters
     total = 0
     unmapped = 0
     missmatched = 0
     suppl = 0
+    good = 0
 
     for s in infile:
         total += 1
@@ -173,15 +176,19 @@ def main(infile, outfile, bedfile):
         except Exception as e:
             print("problem %s" % (e,), sys.stderr)
             pass
-
+        else:
+            good += 1
         if not check_still_matching_bases(s):
             continue
 
         outfile_trimmed.write(s)
 
-    print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\nSupplamentary: {suppl} ({round(suppl/total*100, 2)}%)\n"
-          f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)")
-    print("Finished soft clipping bam file")
+    print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\n"
+          f"Supplamentary: {suppl} ({round(suppl/total*100, 2)}%)\n"
+          f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)"
+          f"Good sequences: {good} ({round(good/total*100, 2)}%)")
+
+    print("\nFinished soft clipping bam file\n")
 
 
 if __name__ == "__main__":
