@@ -179,8 +179,8 @@ def main(infile, outfile, bedfile):
 
         outfile_trimmed.write(s)
 
-    print(f"Total: {total}\nUnmapped: {unmapped} ({unmapped/total*100}%)\nSupplamentary: {suppl} ({suppl/total*100}%)\n"
-          f"Mismatched primers: {missmatched} ({missmatched/total*100}%)")
+    print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\nSupplamentary: {suppl} ({round(suppl/total*100, 2)}%)\n"
+          f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)")
     print("Finished soft clipping bam file")
 
 
