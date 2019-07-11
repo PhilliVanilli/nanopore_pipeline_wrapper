@@ -337,8 +337,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # remove each chunked file and the temp demultiplex folder and files from each chunk
             with open(log_file, "a") as handle:
                 handle.write(f"\nremoving chunked files and temp demultiplexed files from each chunk\n")
-            # for folder in colleted_temp_folders:
-                # shutil.rmtree(str(folder))
+            for folder in colleted_temp_folders:
+                shutil.rmtree(str(folder))
             for file in pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"):
                 os.unlink(str(file))
 
