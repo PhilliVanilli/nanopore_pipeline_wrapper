@@ -118,16 +118,19 @@ def trim(cigar, s, start_pos, end):
 
     if not end:
         s.pos = pos - extra
-
     if end:
         cigar.append((4, eaten))
     else:
         cigar.insert(0, (4, eaten))
-    # oldcigarstring = s.cigarstring
-    s.cigartuples = cigar
-    # print(s.query_name, oldcigarstring[0:50], s.cigarstring[0:50])
-    return cigar
 
+    if cigar[0][1] <= 0 or cigar[-1][1] <= 0:
+        print("negative length added to cigar, something got messed up")
+        print("old", s.cigarstring)
+        print("new", cigar)
+        raise
+    s.cigartuples = cigar
+
+    return cigar
 
 
 def find_primer(bed, ref_pos, direction):
@@ -162,7 +165,7 @@ def main(infile, outfile, bedfile):
     missmatched = 0
     suppl = 0
     good = 0
-
+    bad = 0
     for s in infile:
         total += 1
         cigar = copy(s.cigartuples)
@@ -190,22 +193,35 @@ def main(infile, outfile, bedfile):
             continue
 
         # if the alignment starts before the end of the primer, trim to that position
+
+        primer_position = p1[2]['end']
+        # print(f"end {primer_position}\nref start {s.reference_start}")
+        pass_1 = False
+        pass_2 = False
         try:
-            primer_position = p1[2]['end']
-            # print(f"end {primer_position}\nref start {s.reference_start}")
             if s.reference_start < primer_position:
                 trim(cigar, s, primer_position, 0)
+                pass_1 = True
+        except Exception as e:
+            print("problem clipping primers, most likely due to indels in the primer region")
+            bad += 1
+            continue
 
-            primer_position = p2[2]['start']
-            # print(f"end {primer_position}\nref end {s.reference_end}")
+        primer_position = p2[2]['start']
+        # print(f"end {primer_position}\nref end {s.reference_end}")
+
+        try:
             if s.reference_end > primer_position:
                 trim(cigar, s, primer_position, 1)
-
+                pass_2 = True
         except Exception as e:
-            print("problem %s" % (e,), sys.stderr)
-            pass
-        else:
+            print("problem clipping primers, most likely due to indels in the primer region")
+            bad += 1
+            continue
+
+        if pass_1 and pass_2:
             good += 1
+
         if not check_still_matching_bases(s):
             continue
 
@@ -214,6 +230,7 @@ def main(infile, outfile, bedfile):
     print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\n"
           f"Supplementary: {suppl} ({round(suppl/total*100, 2)}%)\n"
           f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)\n"
+          f"bad sequences: {bad} ({round(bad/total*100, 2)}%)"
           f"Good sequences: {good} ({round(good/total*100, 2)}%)")
 
     print("\nFinished soft clipping bam file\n")
