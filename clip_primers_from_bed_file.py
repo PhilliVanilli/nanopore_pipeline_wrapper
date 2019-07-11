@@ -52,9 +52,35 @@ def trim(cigar, s, start_pos, end):
     while 1:
         # chomp stuff off until we reach pos
         if end:
-            flag, length = cigar.pop()
+            try:
+                flag, length = cigar.pop()
+            except IndexError:
+                total_len = sum([x[1] for x in s.cigartuples])
+                soft_clip = sum([x[1] for x in s.cigartuples if x[0] == 4])
+
+                print(f"Nothing left after cipping\n"
+                      f"most likely large region of soft clipped sequence\n"
+                      f"sequence name = {s.query_name}\n"
+                      f"cigar code={s.cigarstring}\n"
+                      f"total length = {total_len}\n"
+                      f"total_soft_clipped_by_bwa={soft_clip}\n"
+                      f"total clipped = {eaten}\n")
+                break
         else:
-            flag, length = cigar.pop(0)
+            try:
+                flag, length = cigar.pop(0)
+            except IndexError:
+                total_len = sum([x[1] for x in s.cigartuples])
+                soft_clip = sum([x[1] for x in s.cigartuples if x[0] == 4])
+
+                print(f"Nothing left after cipping\n"
+                      f"most likely large region of soft clipped sequence\n"
+                      f"sequence name = {s.query_name}\n"
+                      f"cigar code={s.cigarstring}\n"
+                      f"total length = {total_len}\n"
+                      f"total_soft_clipped_by_bwa={soft_clip}\n"
+                      f"total clipped = {eaten}\n")
+                break
 
         if flag == 0:
             # match
@@ -100,6 +126,8 @@ def trim(cigar, s, start_pos, end):
     # oldcigarstring = s.cigarstring
     s.cigartuples = cigar
     # print(s.query_name, oldcigarstring[0:50], s.cigarstring[0:50])
+    return cigar
+
 
 
 def find_primer(bed, ref_pos, direction):
@@ -123,8 +151,8 @@ def main(infile, outfile, bedfile):
     bed = read_bed_file(bedfile)
     infile = pysam.AlignmentFile(infile, "rb")
     outfile_trimmed = pysam.AlignmentFile(outfile, "wh", template=infile)
-    suppl_out = outfile + "_excluded_sequences_as_supplamentary.sam"
-    marked_supplamentary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
+    suppl_out = outfile + "_excluded_sequences_as_Supplementary.sam"
+    marked_supplementary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
     primer_mismatch_file = outfile + "_excluded_as_primer_mismatched.sam"
     marked_primer_missmatch = pysam.AlignmentFile(primer_mismatch_file, "wh", template=infile)
 
@@ -147,7 +175,7 @@ def main(infile, outfile, bedfile):
 
         if s.is_supplementary:
             # print(f"{s.query_name} skipped as supplementary")
-            marked_supplamentary.write(s)
+            marked_supplementary.write(s)
             suppl += 1
             continue
 
@@ -184,8 +212,8 @@ def main(infile, outfile, bedfile):
         outfile_trimmed.write(s)
 
     print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\n"
-          f"Supplamentary: {suppl} ({round(suppl/total*100, 2)}%)\n"
-          f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)"
+          f"Supplementary: {suppl} ({round(suppl/total*100, 2)}%)\n"
+          f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)\n"
           f"Good sequences: {good} ({round(good/total*100, 2)}%)")
 
     print("\nFinished soft clipping bam file\n")
