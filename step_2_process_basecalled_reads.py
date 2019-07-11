@@ -285,13 +285,18 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
         num_of_chunks = math.ceil(fastq_entries / max_fastq_size_porechop)
         if num_of_chunks > 1.0:
-            with open(log_file, "a") as handle:
-                handle.write(f"\nexperiment run fastq file too large for porechop\nchunking file into parts\n")
             # file is possibly too large for system memory to run porechop, chunk into parts
             split_into_parts_by_x_lines = int(fastq_entries / num_of_chunks) * 4
+            print(f"chunking large fastq file into files of size {split_into_parts_by_x_lines/4} sequences")
+            with open(log_file, "a") as handle:
+                handle.write(f"\nexperiment run fastq file too large for porechop\nchunking file into "
+                             f"files of size: {split_into_parts_by_x_lines/4} sequences\n")
 
             split_cmd = f"split --additional-suffix _temp_chunk.fastq -l {split_into_parts_by_x_lines} " \
                 f"{master_reads_file} {str(master_reads_file.stem).replace('all', 'all_')}"
+
+            with open(log_file, "a") as handle:
+                handle.write(f"\n command to split file into parts:\n{split_cmd}\n")
 
             try_except_exit_on_fail(split_cmd)
 
@@ -314,8 +319,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                                   f"> {file}.demultiplexreport.txt"
 
                 with open(log_file, "a") as handle:
-                    handle.write(f"\n{demultiplex_cmd}\n")
+                    handle.write(f"demultiplex on chunk:\n{demultiplex_cmd}\n")
 
+                print(f"demultiplexing file {file}")
                 try_except_exit_on_fail(demultiplex_cmd)
 
             # collect file path for each barcode from each demultiplexed chunk
@@ -326,6 +332,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     collect_demultiplexed_files[barcode_id].append(file)
 
             # concatenate barcode file from each chunk into one file
+            print("concatenating porechop demultiplexed files from each chunk\n")
             with open(log_file, "a") as handle:
                 handle.write(f"\nconcatenating porechop demultiplexed files from each chunk\n")
             for barcode, file_list in collect_demultiplexed_files.items():
@@ -335,6 +342,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 try_except_exit_on_fail(cat_cmd)
 
             # remove each chunked file and the temp demultiplex folder and files from each chunk
+            print(f"\nremoving chunked files and temp demultiplexed files from each chunk\n")
             with open(log_file, "a") as handle:
                 handle.write(f"\nremoving chunked files and temp demultiplexed files from each chunk\n")
             for folder in colleted_temp_folders:
@@ -360,6 +368,10 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             try_except_exit_on_fail(demultiplex_cmd)
 
         # add run name to each demultiplexed file
+        print("adding run_name to demultiplexed files")
+        with open(log_file, "a") as handle:
+            handle.write("adding run_name to demultiplexed files\n")
+
         for file in list(demultipled_folder.glob("*.fastq")):
             path = file.parents[0]
             name = file.name
@@ -392,6 +404,11 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
     if run_step == 4:
         # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
+        print("collecting demultiplexed files into sample.fastq files based on specified sample barcode combinations\n")
+        with open(log_file, "a") as handle:
+            handle.write(f"\ncollecting demultiplexed files into sample.fastq files based on specified sample "
+                         f"barcode combinations\n")
+
         sample_names_df = pd.read_csv(sample_names, sep=None, keep_default_na=False, na_values=['NA'], engine="python")
         sample_names_df['barcode_1'] = sample_names_df['barcode_1'].apply(lambda x: cat_sample_names(x, run_name))
         sample_names_df['barcode_2'] = sample_names_df['barcode_2'].apply(lambda x: cat_sample_names(x, run_name))
@@ -425,7 +442,14 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             sys.exit("Run step only completed, exiting")
 
     if run_step == 5:
+        print("Running variant calling on samples")
+        with open(log_file, "a") as handle:
+            handle.write(f"\nRunning variant calling on samples\n")
+
         make_index_cmd = f"bwa index {chosen_ref_scheme}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\n{make_index_cmd}\n")
+
         try_except_exit_on_fail(make_index_cmd)
 
         all_sample_files = pathlib.Path(sample_folder).glob("*/*.fastq")
@@ -435,6 +459,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 with open(log_file, "a") as handle:
                     handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
                 continue
+            # set input and output file names
             sample_name = pathlib.Path(sample_fastq).stem
             sample_folder = pathlib.Path(sample_fastq).parent
             sam_name = pathlib.Path(sample_folder, sample_name + "_mapped.sam")
@@ -453,8 +478,10 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             artic_cons_file = pathlib.Path(sample_folder, f"{sample_name}_consensus_artic.fasta")
             all_consensus_sequences = pathlib.Path(sample_folder, sample_name + "_all_consensus.fasta")
 
+            # make sure cwd is the sample folder, as some programs output to cwd
             os.chdir(sample_folder)
 
+            print(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
             with open(log_file, "a") as handle:
                 handle.write(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
 
