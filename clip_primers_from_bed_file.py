@@ -124,9 +124,9 @@ def trim(cigar, s, start_pos, end):
         cigar.insert(0, (4, eaten))
 
     if cigar[0][1] <= 0 or cigar[-1][1] <= 0:
-        print("negative length added to cigar, something got messed up")
-        print("old", s.cigarstring)
-        print("new", cigar)
+        print("negative length added to cigar, probable indel in primer region")
+        # print("old", s.cigarstring)
+        # print("new", cigar)
         raise
     s.cigartuples = cigar
 
@@ -203,7 +203,7 @@ def main(infile, outfile, bedfile):
                 trim(cigar, s, primer_position, 0)
                 pass_1 = True
         except Exception as e:
-            print("problem clipping primers, most likely due to indels in the primer region")
+            print("problem clipping primers, most likely due to indels in the primer region\n skipping read\n")
             bad += 1
             continue
 
@@ -215,7 +215,7 @@ def main(infile, outfile, bedfile):
                 trim(cigar, s, primer_position, 1)
                 pass_2 = True
         except Exception as e:
-            print("problem clipping primers, most likely due to indels in the primer region")
+            print("problem clipping primers, most likely due to indels in the primer region\n skipping read\n")
             bad += 1
             continue
 
