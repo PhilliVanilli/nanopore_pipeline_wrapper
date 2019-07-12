@@ -230,7 +230,7 @@ def main(infile, outfile, bedfile):
     print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\n"
           f"Supplementary: {suppl} ({round(suppl/total*100, 2)}%)\n"
           f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)\n"
-          f"bad sequences: {bad} ({round(bad/total*100, 2)}%)"
+          f"indel in primer sequences: {bad} ({round(bad/total*100, 2)}%)"
           f"Good sequences: {good} ({round(good/total*100, 2)}%)")
 
     print("\nFinished soft clipping bam file\n")
