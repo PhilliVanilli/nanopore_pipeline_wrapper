@@ -59,7 +59,7 @@ def trim(cigar, s, start_pos, end):
                 soft_clip = sum([x[1] for x in s.cigartuples if x[0] == 4])
 
                 print(f"Nothing left after cipping\n"
-                      f"most likely large region of soft clipped sequence\n"
+                      f"most likely wrong primer scheme used\n"
                       f"sequence name = {s.query_name}\n"
                       f"cigar code={s.cigarstring}\n"
                       f"total length = {total_len}\n"
@@ -74,7 +74,7 @@ def trim(cigar, s, start_pos, end):
                 soft_clip = sum([x[1] for x in s.cigartuples if x[0] == 4])
 
                 print(f"Nothing left after cipping\n"
-                      f"most likely large region of soft clipped sequence\n"
+                      f"most likely wrong primer scheme used\n"
                       f"sequence name = {s.query_name}\n"
                       f"cigar code={s.cigarstring}\n"
                       f"total length = {total_len}\n"
@@ -100,6 +100,7 @@ def trim(cigar, s, start_pos, end):
                 pos -= length
             pass
         if flag == 4:
+            # soft clip
             eaten += length
         if not end and pos >= start_pos and flag == 0:
             break
@@ -125,7 +126,7 @@ def trim(cigar, s, start_pos, end):
 
     if cigar[0][1] <= 0 or cigar[-1][1] <= 0:
         print("negative length added to cigar, probable indel in primer region")
-        # print("old", s.cigarstring)
+        # print("old", s.cigartuples)
         # print("new", cigar)
         raise
     s.cigartuples = cigar
@@ -193,9 +194,7 @@ def main(infile, outfile, bedfile):
             continue
 
         # if the alignment starts before the end of the primer, trim to that position
-
         primer_position = p1[2]['end']
-        # print(f"end {primer_position}\nref start {s.reference_start}")
         pass_1 = False
         pass_2 = False
         try:
@@ -208,7 +207,6 @@ def main(infile, outfile, bedfile):
             continue
 
         primer_position = p2[2]['start']
-        # print(f"end {primer_position}\nref end {s.reference_end}")
 
         try:
             if s.reference_end > primer_position:
