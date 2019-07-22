@@ -200,7 +200,7 @@ def cat_sample_names(barcode, run_name):
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads):
+         rerun_step_only, msa_cons_only, threads, max_fastq_size):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -274,7 +274,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             sys.exit("exiting")
 
         # get number of sequences and split into subfiles if too large
-        max_fastq_size_porechop = 2000000
+        max_fastq_size_porechop = max_fastq_size
         grep_cmd = f"grep -c '^@' {master_reads_file}"
         try:
             fastq_entries = int(subprocess.check_output(grep_cmd, shell=True).decode(sys.stdout.encoding).strip())
@@ -740,7 +740,9 @@ if __name__ == "__main__":
                         help="Only do MSA to consensus sequence for variant calling", required=False)
     parser.add_argument("-t", "--threads", type=int, default=8,
                         help="The number of threads to use for porechop, bwa, nanopolish etc...", required=False)
-
+    parser.add_argument("-mfs", "--max_fastq_size", type=int, default=2000000,
+                        help="The maximum number of sequences in a fastq for chunking the big fastq "
+                             "into smaller parts for prechop to run on", required=False)
     args = parser.parse_args()
 
     project_path = args.project_path
@@ -755,6 +757,7 @@ if __name__ == "__main__":
     rerun_step_only = args.rerun_step_only
     msa_cons_only = args.msa_cons_only
     threads = args.threads
+    max_fastq_size = args.max_fastq_size
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads)
+         rerun_step_only, msa_cons_only, threads, max_fastq_size)
