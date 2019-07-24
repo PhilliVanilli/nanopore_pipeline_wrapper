@@ -302,7 +302,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
             # for each chunk, do porechop
             colleted_temp_folders = []
-            for file in pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"):
+            chunks_to_run = list(pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"))
+            split = math.ceil(len(chunks_to_run)/2)
+            part_1 = chunks_to_run[:split]
+            part_2 = chunks_to_run[split:]
+
+            for file in chunks_to_run:
                 with open(log_file, "a") as handle:
                     handle.write(f"\nrunning porechop on chunk: {file}\n")
                 tmp_demix_folder = pathlib.Path(demultipled_folder, file.stem)
@@ -385,7 +390,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         else:
             sys.exit("Run step only completed, exiting")
 
-    if run_step == 3:
+    if run_step == 3 and not msa_cons_only:
         # index concatenated fastq with nanopolish
         print(f"\nrunning: nanopolish index on fast5/fastq files")
         with open(log_file, "a") as handle:
@@ -401,6 +406,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run_step = 4
         else:
             sys.exit("Run step only completed, exiting")
+    else:
+        run_step = 4
 
     if run_step == 4:
         # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
