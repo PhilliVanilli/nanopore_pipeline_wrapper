@@ -303,9 +303,6 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # for each chunk, do porechop
             colleted_temp_folders = []
             chunks_to_run = list(pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"))
-            # split = math.ceil(len(chunks_to_run)/2)
-            # part_1 = chunks_to_run[:split]
-            # part_2 = chunks_to_run[split:]
 
             for file in chunks_to_run:
                 with open(log_file, "a") as handle:
