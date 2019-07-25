@@ -11,6 +11,7 @@ from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
 import matplotlib.pyplot as plt
+import multiprocessing.dummy as mp
 
 
 __author__ = 'Colin Anthony'
@@ -304,6 +305,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             colleted_temp_folders = []
             chunks_to_run = list(pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"))
 
+            # collect all the demultiplex commands to run for parallel processing
+            demultiplex_calls_to_make = []
             for file in chunks_to_run:
                 with open(log_file, "a") as handle:
                     handle.write(f"\nrunning porechop on chunk: {file}\n")
@@ -323,8 +326,16 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 with open(log_file, "a") as handle:
                     handle.write(f"demultiplex on chunk:\n{demultiplex_cmd}\n")
 
-                print(f"demultiplexing file {file}")
-                try_except_exit_on_fail(demultiplex_cmd)
+                demultiplex_calls_to_make.append(demultiplex_cmd)
+
+                # print(f"demultiplexing file {file}")
+                # try_except_exit_on_fail(demultiplex_cmd)
+
+            # parallel process using 2 threads
+            p = mp.Pool(2)
+            p.map(try_except_exit_on_fail, demultiplex_calls_to_make)
+            p.close()
+            p.join()
 
             # collect file path for each barcode from each demultiplexed chunk
             collect_demultiplexed_files = collections.defaultdict(list)
