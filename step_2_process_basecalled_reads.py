@@ -11,7 +11,6 @@ from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
 import matplotlib.pyplot as plt
-import multiprocessing.dummy as mp
 
 
 __author__ = 'Colin Anthony'
