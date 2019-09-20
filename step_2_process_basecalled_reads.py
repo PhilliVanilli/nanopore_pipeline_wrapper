@@ -78,13 +78,15 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
 
     with open(output_fastq, 'w') as handle:
         for fastq in all_fastqs:
-            for record in SeqIO.parse(open(fastq), "fastq"):
-                seq_len = len(record.seq)
-                if seq_len > max_len or seq_len < min_len:
-                    continue
+            try:
+                for record in SeqIO.parse(open(fastq), "fastq"):
+                    seq_len = len(record.seq)
+                    if seq_len > max_len or seq_len < min_len:
+                        continue
                 else:
                     SeqIO.write([record], handle, "fastq")
-
+            except ValueError as e:
+                print("Failed on fastq file:", fastq, "\n", e)
     if output_fastq.is_file():
         return True
     else:
