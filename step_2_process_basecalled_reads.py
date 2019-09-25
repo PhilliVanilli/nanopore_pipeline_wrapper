@@ -87,6 +87,7 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
                     SeqIO.write([record], handle, "fastq")
             except ValueError as e:
                 print("Failed on fastq file:", fastq, "\n", e)
+                continue
     if output_fastq.is_file():
         return True
     else:
