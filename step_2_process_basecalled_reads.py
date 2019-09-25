@@ -86,7 +86,7 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
                 else:
                     SeqIO.write([record], handle, "fastq")
             except ValueError as e:
-                print("Failed on fastq file:", fastq, "\n", e)
+                print("Failed on fastq file:", fastq, "\n", e, "\n", "Continuing with next fastq file")
                 continue
     if output_fastq.is_file():
         return True
@@ -560,8 +560,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
                 f"2>&1 | tee -a {log_file}"
             with open(log_file, "a") as handle:
-                handle.write(f"\nrunning: sorting bam file\n")
-                handle.write(f"{sort_sam_cmd}\n")
+                handle.write(f"\nrunning: sorting bam file\n{sort_sam_cmd}\n")
             run = try_except_continue_on_fail(sort_sam_cmd)
             if not run:
                 continue
