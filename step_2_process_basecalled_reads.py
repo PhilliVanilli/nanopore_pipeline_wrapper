@@ -211,7 +211,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
     # get folder paths
     project_path = pathlib.Path(project_path).absolute()
-    plot_folder = pathlib.Path(project_path, "plots")
+    plot_folder = pathlib.Path(project_path, "seq_depth_plots").mkdir(mode=0o777, parents=True, exist_ok=True)
     run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
     fastq_dir = pathlib.Path(project_path, "fastq")
