@@ -716,6 +716,18 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             with open(log_file, "a") as handle:
                 handle.write(f"\n\n________________\nCompleted processing sample: {sample_name}\n\n________________\n")
 
+        # align the master consensus file
+        tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
+        mafft_cmd = f"mafft {str(all_samples_consens_seqs)} > {str(tmp_file)}"
+        run = try_except_continue_on_fail(mafft_cmd)
+        if not run:
+            print(f"could not align {all_samples_consens_seqs}")
+            pass
+        else:
+            all_samples_consens_seqs.unlink()
+            os.rename(tmp_file, str(all_samples_consens_seqs))
+            tmp_file.unlink()
+
     print("sample processing completed")
     with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
