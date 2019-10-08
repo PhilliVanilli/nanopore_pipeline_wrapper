@@ -460,6 +460,15 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         try_except_exit_on_fail(make_index_cmd)
 
         all_sample_files = pathlib.Path(sample_folder).glob("*/*.fastq")
+
+        # make variable for project file containing all samples' consensus sequences
+        project_name = project_path.parts[-1]
+        all_samples_consens_seqs = pathlib.Path(project_path, project_name + "_all_samples.fasta")
+
+        # initialize the file, overwriting existing file if it is present to prevent perpetual appending
+        with open(all_samples_consens_seqs, 'w') as fh:
+            fh.write("")
+
         for sample_fastq in all_sample_files:
             if not sample_fastq.is_file():
                 print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
@@ -685,7 +694,10 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")
             else:
                 with open(msa_cons, 'w') as handle:
-                    handle.write(f">{sample_name}_bam_msa_consensus\n{cons}\n")
+                    handle.write(f">{sample_name}\n{cons}\n")
+                # write consensus to master consensus file
+                with open(all_samples_consens_seqs, 'a') as fh:
+                    fh.write(f">{sample_name}\n{cons}\n")
 
                 # plot depth for sample
                 depth_list = depth_profile["non_gap"]
