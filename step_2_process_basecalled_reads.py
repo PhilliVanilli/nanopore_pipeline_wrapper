@@ -211,6 +211,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
     # get folder paths
     project_path = pathlib.Path(project_path).absolute()
+    plot_folder = pathlib.Path(project_path, "plots")
     run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
     fastq_dir = pathlib.Path(project_path, "fastq")
@@ -701,7 +702,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
                 # plot depth for sample
                 depth_list = depth_profile["non_gap"]
-                depth_outfile = pathlib.Path(sample_folder, sample_name + "_sequencing_depth.png")
+                depth_outfile = pathlib.Path(plot_folder, sample_name + "_sequencing_depth.png")
                 plot_depth(depth_list, sample_name, depth_outfile)
 
             if not msa_cons_only:
