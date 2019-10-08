@@ -653,7 +653,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
                 # plot quality for sample
                 plot_file_script = pathlib.Path(script_folder, "plot_depths_qual.py")
-                plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} " \
+                plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -o {project_path}" \
                     f"-n {sample_name} 2>&1 | tee -a {log_file}"
                 run = try_except_continue_on_fail(plot_cmd)
                 if not run:

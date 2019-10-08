@@ -58,12 +58,12 @@ def plot_qual(qual_list, sample_name, outfile):
     plt.savefig(outfile, ext="png", dpi=300, facecolor="white", bbox_inches="tight")
 
 
-def main(reference, vcf_file, bamfile, sample_name):
+def main(reference, vcf_file, bamfile, sample_name, outpath):
 
     if bamfile:
         bamfile = pathlib.Path(bamfile).absolute()
         reference = pathlib.Path(reference).absolute()
-        outfile_depth = pathlib.Path(bamfile.parent, sample_name + "_sequencing_depth.png")
+        outfile_depth = pathlib.Path(outpath, sample_name + "_sequencing_depth.png")
 
         depths = collect_depths(bamfile)
         seq = list(SeqIO.parse(open(str(reference)), "fasta"))[0]
@@ -98,6 +98,8 @@ if __name__ == "__main__":
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-r", "--reference", type=str, default=argparse.SUPPRESS,
                         help="The reference genome and primer scheme to use", required=True)
+    parser.add_argument("-o", "--outpath", type=str, default=False,
+                        help="The path where the output will be written", required=False)
     parser.add_argument("-v", "--vcf_file", type=str, default=False,
                         help="The path and name of the vcf file", required=False)
     parser.add_argument("-b", "--bam_file", default=False, type=str,
@@ -110,5 +112,6 @@ if __name__ == "__main__":
     bam_file = args.bam_file
     reference = args.reference
     sample_name = args.sample_name
+    outpath = args.outpath
 
-    main(reference, vcf_file, bam_file, sample_name)
+    main(reference, vcf_file, bam_file, sample_name, outpath)
