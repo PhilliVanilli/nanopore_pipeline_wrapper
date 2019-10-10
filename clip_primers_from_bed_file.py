@@ -1,5 +1,7 @@
 import argparse
 import sys
+from json import dump
+import pathlib
 from copy import copy
 import csv
 from operator import itemgetter
@@ -154,11 +156,13 @@ def main(infile, outfile, bedfile):
 
     bed = read_bed_file(bedfile)
     infile = pysam.AlignmentFile(infile, "rb")
-    outfile_trimmed = pysam.AlignmentFile(outfile, "wh", template=infile)
+    outfile = pathlib.Path(outfile).absolute()
+    outfile_trimmed = pysam.AlignmentFile(str(outfile), "wh", template=infile)
     suppl_out = outfile + "_excluded_sequences_as_Supplementary.sam"
     marked_supplementary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
     primer_mismatch_file = outfile + "_excluded_as_primer_mismatched.sam"
     marked_primer_missmatch = pysam.AlignmentFile(primer_mismatch_file, "wh", template=infile)
+    read_prime_pair_lookup = pathlib.Path(outfile.parent, "read_primer_pair_lookup.json")
 
     # set counters
     total = 0
@@ -167,6 +171,9 @@ def main(infile, outfile, bedfile):
     suppl = 0
     good = 0
     bad = 0
+
+    read_prime_pair_lookup_dict = {}
+
     for s in infile:
         total += 1
         cigar = copy(s.cigartuples)
@@ -177,8 +184,8 @@ def main(infile, outfile, bedfile):
             unmapped += 1
             continue
 
+        # logic to remove part of read that were mapped to non-contiguous region (ie supplementary read)
         if s.is_supplementary:
-            # print(f"{s.query_name} skipped as supplementary")
             marked_supplementary.write(s)
             suppl += 1
             continue
@@ -192,6 +199,9 @@ def main(infile, outfile, bedfile):
             marked_primer_missmatch.write(s)
             missmatched += 1
             continue
+
+        # create dict to write seq name and primer pair code to json
+        read_prime_pair_lookup_dict[s.query_name] = (p1, p2)
 
         # if the alignment starts before the end of the primer, trim to that position
         primer_position = p1[2]['end']
@@ -224,6 +234,10 @@ def main(infile, outfile, bedfile):
             continue
 
         outfile_trimmed.write(s)
+
+    # write seq name and primer pair code to json
+    with open(read_prime_pair_lookup, 'w') as jd:
+        dump(read_prime_pair_lookup_dict, jd)
 
     print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\n"
           f"Supplementary: {suppl} ({round(suppl/total*100, 2)}%)\n"
