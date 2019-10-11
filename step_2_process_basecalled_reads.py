@@ -7,6 +7,7 @@ import shutil
 import collections
 import datetime
 import math
+import json
 from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
@@ -125,10 +126,11 @@ def d_freq_lists(dna_list, n):
     return counts_dict, depth_dict
 
 
-def consensus_maker(d, min_depth):
+def consensus_maker(d, primers_depth, min_depth):
     """
     Create a consensus sequence from an alignment
     :param d: (dict) dictionary of an alignment (key = seq name (str): value = aligned sequence (str))
+    :param primers_depth: (tup) tupple of primer name and depth of seq for that primer pair
     :param min_depth: (int) the minimum depth required to call a base in the consensus (otherwise called as "!"
     :return: (str) the consensus sequence
     """
@@ -164,6 +166,27 @@ def consensus_maker(d, min_depth):
                 consensus += str(degen[most_freq_bases])
 
     return consensus, depth_profile
+
+
+def plot_primer_depth(depth_list, primer_pairs, sample_name, outfile):
+
+
+    x_vals = [range(len(primer_pairs))]
+    y_vals = depth_list
+    fig, ax = plt.subplots()
+    ax.set_xticklabels(primer_pairs)
+    ax.set_ylabel('Sequencing depth')
+    ax.set_xlabel('Primer pair')
+    ax.set_title(sample_name)
+
+    plt.plot(x_vals, y_vals)
+
+    w = 6.8
+    h = 4
+    f = plt.gcf()
+    f.set_size_inches(w, h)
+
+    plt.savefig(outfile, ext="png", dpi=300, facecolor="white", bbox_inches="tight")
 
 
 def plot_depth(depth_list, sample_name, outfile):
@@ -211,7 +234,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
     # get folder paths
     project_path = pathlib.Path(project_path).absolute()
-    plot_folder = pathlib.Path(project_path, "seq_depth_plots").mkdir(mode=0o777, parents=True, exist_ok=True)
+    plot_folder = pathlib.Path(project_path, "seq_depth_plots")
+    plot_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
     run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
     fastq_dir = pathlib.Path(project_path, "fastq")
@@ -687,9 +711,23 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # convert multi fasta alignment to consensus sequence
             fasta_msa_d = fasta_to_dct(msa_fasta)
 
+            # get json dump of reads and primer pairs
+            json_file = pathlib.Path(sample_folder).glob("*read_primer_pair_lookup.json")
+            with open(str(json_file), 'r') as jd:
+                read_primer_pairs_dct = json.load(jd)
+            primer_pair_depth_outfile = pathlib.Path(plot_folder, sample_name + "_per_primer_depth.png")
+
+            primer_pairs = []
+            primers_depth = []
+            for primer_pair, names_list in read_primer_pairs_dct.items():
+                primers_depth.append(len(names_list))
+                primer_pairs.append(primer_pair)
+            primers_depth = zip(primer_pairs, primers_depth)
+            plot_primer_depth(primers_depth, primer_pairs, sample_name, primer_pair_depth_outfile)
+
             # set minimum depth for calling a position in the consensus sequence
             try:
-                cons, depth_profile = consensus_maker(fasta_msa_d, min_depth)
+                cons, depth_profile = consensus_maker(fasta_msa_d, primers_depth, min_depth)
             except IndexError as e:
                 with open(log_file, "a") as handle:
                     handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")

@@ -6,7 +6,7 @@ from copy import copy
 import csv
 from operator import itemgetter
 import pysam
-
+import collections
 
 """
 Written by Nick Loman as part of the ZiBRA pipeline (zibraproject.org)
@@ -172,7 +172,7 @@ def main(infile, outfile, bedfile):
     good = 0
     bad = 0
 
-    read_prime_pair_lookup_dict = {}
+    read_prime_pair_lookup_dict = collections.defaultdict(list)
 
     for s in infile:
         total += 1
@@ -201,7 +201,7 @@ def main(infile, outfile, bedfile):
             continue
 
         # create dict to write seq name and primer pair code to json
-        read_prime_pair_lookup_dict[s.query_name] = (p1, p2)
+        read_prime_pair_lookup_dict[f"{p1[2]['end']}_{p2[2]['start']}"].append(s.query_name)
 
         # if the alignment starts before the end of the primer, trim to that position
         primer_position = p1[2]['end']
