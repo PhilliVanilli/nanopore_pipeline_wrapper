@@ -126,11 +126,11 @@ def d_freq_lists(dna_list, n):
     return counts_dict, depth_dict
 
 
-def consensus_maker(d, primers_depth, min_depth):
+def consensus_maker(d, positional_depth, min_depth):
     """
     Create a consensus sequence from an alignment
     :param d: (dict) dictionary of an alignment (key = seq name (str): value = aligned sequence (str))
-    :param primers_depth: (tup) tupple of primer name and depth of seq for that primer pair
+    :param positional_depth: (dict) key = str(position), value = int(depth)
     :param min_depth: (int) the minimum depth required to call a base in the consensus (otherwise called as "!"
     :return: (str) the consensus sequence
     """
@@ -149,21 +149,24 @@ def consensus_maker(d, primers_depth, min_depth):
              ('A', 'C', 'G', 'T'): 'N'}
 
     for position in range(seq_length):
-        if depth_profile["non_gap"][position] <= min_depth:
+        if positional_depth[str(position)] <= min_depth:
             consensus += str("N")
         else:
-            dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N']}
+            dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', '-']}
             # get the highest frequency value
             max_freq = max(dct.values())
             # get the base with the highest frequency value
             base_with_max_freq = max(dct, key=dct.get)
             # if multiple bases share the max frequency make a list of them for degeneracy code lookup
-            most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T'] if dct[base] == max_freq))
+            most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T', '-'] if dct[base] == max_freq))
             if len(most_freq_bases) == 1:
                 consensus += str(base_with_max_freq)
             else:
+                if '-' in most_freq_bases:
+                    most_freq_bases.remove("-")
                 most_freq_bases = tuple(most_freq_bases)
-                consensus += str(degen[most_freq_bases])
+                degen_char = str(degen[most_freq_bases])
+                consensus += degen_char
 
     return consensus, depth_profile
 
@@ -725,9 +728,17 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             primers_depth = zip(primer_pairs, primers_depth)
             plot_primer_depth(primers_depth, primer_pairs, sample_name, primer_pair_depth_outfile)
 
-            # set minimum depth for calling a position in the consensus sequence
+            # set minimum depth for calling a position in the consensus sequence per primer region
+            positional_depth = collections.defaultdict(int)
+            for (primerpair, depth) in primers_depth:
+                start_pos = int(primerpair.split("_")[0])
+                end_pos = int(primerpair.split("_")[1])
+                for i in range(start_pos, end_pos + 1):
+                    positional_depth[str(i)] += depth
+
+            # build the consensus sequence
             try:
-                cons, depth_profile = consensus_maker(fasta_msa_d, primers_depth, min_depth)
+                cons, depth_profile = consensus_maker(fasta_msa_d, positional_depth, min_depth)
             except IndexError as e:
                 with open(log_file, "a") as handle:
                     handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")
