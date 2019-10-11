@@ -141,6 +141,7 @@ def consensus_maker(d, positional_depth, min_depth):
         raise IndexError
 
     seq_length = len(seq_list[0])
+    total_sequences = len(seq_list)
     master_profile, depth_profile = d_freq_lists(seq_list, seq_length)
 
     consensus = ""
@@ -153,10 +154,14 @@ def consensus_maker(d, positional_depth, min_depth):
             consensus += str("N")
         else:
             dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', '-']}
-            # get the highest frequency value
-            max_freq = max(dct.values())
+            gap_freq = dct['-']
+            adjusted_gap_cnt = positional_depth[str(position)] - (total_sequences - (total_sequences * (gap_freq/100)))
+            adjusted_gap_freq = (adjusted_gap_cnt / positional_depth[str(position)]) * 100
+            dct['-'] = adjusted_gap_freq
             # get the base with the highest frequency value
             base_with_max_freq = max(dct, key=dct.get)
+            # get the highest frequency value
+            max_freq = dct[base_with_max_freq]
             # if multiple bases share the max frequency make a list of them for degeneracy code lookup
             most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T', '-'] if dct[base] == max_freq))
             if len(most_freq_bases) == 1:
