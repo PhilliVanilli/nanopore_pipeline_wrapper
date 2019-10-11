@@ -95,32 +95,43 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
         return False
 
 
-def d_freq_lists(dna_list, n):
+def d_freq_lists_pos(dna_list, n, positional_depth):
     """
-
+    calculate base frequencies from list of sequences (aligned) using positional depth
     :param dna_list: (list) a alist of DNA sequences
     :param n: (int) length of alignment (ie number of positions)
+    :param positional_depth: (dict) key = str(position), value = int(depth)
     :return: (dict) a dictionary of the frequency for each base, for each site in the alignment
     """
     counts_dict = {'A': [0]*n, 'C': [0]*n, 'G': [0]*n, 'T': [0]*n, '-': [0]*n, "N": [0]*n}
     bases = ["A", "C", "G", "T", "-"]
     depth_dict = {'non_gap': [0] * n, 'gap': [0] * n}
-    total = len(dna_list)
     for seq in dna_list:
         for index, dna in enumerate(seq):
             if dna.upper() not in bases:
                 counts_dict["N"][index] += 1
             else:
-                counts_dict[dna][index] += 1
+                counts_dict[dna.upper()][index] += 1
             if dna == "-":
                 depth_dict["gap"][index] += 1
             else:
                 depth_dict["non_gap"][index] += 1
 
     for base, countslist in counts_dict.items():
-        for i, cnt in enumerate(countslist):
-            frq = round((cnt/total*100), 4)
-            countslist[i] = frq
+        for position, cnt in enumerate(countslist):
+            try:
+                position_depth = positional_depth[position]
+            except IndexError:
+                print(f"Positional depth could not be calculated from primer-pair depth for position {position}")
+                if base != '-':
+                    position_depth = depth_dict["non_gap"][position]
+                else:
+                    position_depth = 0
+            if position_depth == 0:
+                frq = 0
+            else:
+                frq = round((cnt/position_depth*100), 4)
+            countslist[position] = frq
         counts_dict[base] = countslist
 
     return counts_dict, depth_dict
@@ -141,8 +152,7 @@ def consensus_maker(d, positional_depth, min_depth):
         raise IndexError
 
     seq_length = len(seq_list[0])
-    total_sequences = len(seq_list)
-    master_profile, depth_profile = d_freq_lists(seq_list, seq_length)
+    master_profile, depth_profile = d_freq_lists_pos(seq_list, seq_length, positional_depth)
 
     consensus = ""
     degen = {('A', 'G'): 'R', ('C', 'T'): 'Y', ('A', 'C'): 'M', ('G', 'T'): 'K', ('C', 'G'): 'S', ('A', 'T'): 'W',
@@ -154,10 +164,6 @@ def consensus_maker(d, positional_depth, min_depth):
             consensus += str("N")
         else:
             dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', '-']}
-            gap_freq = dct['-']
-            adjusted_gap_cnt = positional_depth[str(position)] - (total_sequences - (total_sequences * (gap_freq/100)))
-            adjusted_gap_freq = (adjusted_gap_cnt / positional_depth[str(position)]) * 100
-            dct['-'] = adjusted_gap_freq
             # get the base with the highest frequency value
             base_with_max_freq = max(dct, key=dct.get)
             # get the highest frequency value
