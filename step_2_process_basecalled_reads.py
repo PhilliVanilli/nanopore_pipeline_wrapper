@@ -117,12 +117,14 @@ def d_freq_lists_pos(dna_list, n, positional_depth):
             else:
                 depth_dict["non_gap"][index] += 1
 
+    total_seqs = len(dna_list)
     for base, countslist in counts_dict.items():
         for position, cnt in enumerate(countslist):
+            position_lookup = str(position +1).zfill(4)
             try:
-                position_depth = positional_depth[position]
+                position_depth = positional_depth[position_lookup]
             except IndexError:
-                print(f"Positional depth could not be calculated from primer-pair depth for position {position}")
+                print(f"Positional depth could not be calculated from primer-pair depth for position {position_lookup}")
                 if base != '-':
                     position_depth = depth_dict["non_gap"][position]
                 else:
@@ -130,6 +132,9 @@ def d_freq_lists_pos(dna_list, n, positional_depth):
             if position_depth == 0:
                 frq = 0
             else:
+                # adjust count for gaps for only the primer pair coverage
+                if base == "-":
+                    cnt = position_depth - (total_seqs - cnt)
                 frq = round((cnt/position_depth*100), 4)
             countslist[position] = frq
         counts_dict[base] = countslist
@@ -145,7 +150,6 @@ def consensus_maker(d, positional_depth, min_depth):
     :param min_depth: (int) the minimum depth required to call a base in the consensus (otherwise called as "!"
     :return: (str) the consensus sequence
     """
-
     seq_list = []
     for names, seq in d.items():
         seq_list.append(seq)
@@ -154,7 +158,6 @@ def consensus_maker(d, positional_depth, min_depth):
 
     seq_length = len(seq_list[0])
     master_profile, depth_profile = d_freq_lists_pos(seq_list, seq_length, positional_depth)
-
     consensus = ""
     degen = {('A', 'G'): 'R', ('C', 'T'): 'Y', ('A', 'C'): 'M', ('G', 'T'): 'K', ('C', 'G'): 'S', ('A', 'T'): 'W',
              ('A', 'C', 'T'): 'H', ('C', 'G', 'T'): 'B', ('A', 'C', 'G'): 'V', ('A', 'G', 'T'): 'D',
@@ -162,7 +165,7 @@ def consensus_maker(d, positional_depth, min_depth):
 
     for position in range(seq_length):
         position_lookup = str(position).zfill(4)
-        if positional_depth[str(position_lookup)] <= min_depth:
+        if positional_depth[position_lookup] <= min_depth:
             consensus += str("N")
         else:
             dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', '-']}
@@ -172,14 +175,18 @@ def consensus_maker(d, positional_depth, min_depth):
             max_freq = dct[base_with_max_freq]
             # if multiple bases share the max frequency make a list of them for degeneracy code lookup
             most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T', '-'] if dct[base] == max_freq))
+
             if len(most_freq_bases) == 1:
                 consensus += str(base_with_max_freq)
             else:
                 if '-' in most_freq_bases:
                     most_freq_bases.remove("-")
-                most_freq_bases = tuple(most_freq_bases)
-                degen_char = str(degen[most_freq_bases])
-                consensus += degen_char
+                if len(most_freq_bases) == 1:
+                    consensus += str(base_with_max_freq)
+                else:
+                    most_freq_bases = tuple(most_freq_bases)
+                    degen_char = str(degen[most_freq_bases])
+                    consensus += degen_char
 
     return consensus, depth_profile
 
@@ -771,7 +778,6 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 end_pos = int(primerpair.split("_")[1])
                 for i in range(start_pos, end_pos + 1):
                     positional_depth[str(i).zfill(4)] += depth
-            # positional_depth = collections.OrderedDict(sorted(positional_depth.items(), key=lambda x: x[0]))
 
             # build the consensus sequence
             try:
