@@ -161,7 +161,8 @@ def consensus_maker(d, positional_depth, min_depth):
              ('A', 'C', 'G', 'T'): 'N'}
 
     for position in range(seq_length):
-        if positional_depth[str(position)] <= min_depth:
+        position_lookup = str(position).zfill(4)
+        if positional_depth[str(position_lookup)] <= min_depth:
             consensus += str("N")
         else:
             dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', '-']}
