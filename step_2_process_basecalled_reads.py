@@ -12,7 +12,7 @@ from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
 import matplotlib.pyplot as plt
-
+from pprint import pprint
 
 __author__ = 'Colin Anthony'
 
@@ -145,6 +145,7 @@ def consensus_maker(d, positional_depth, min_depth):
     :param min_depth: (int) the minimum depth required to call a base in the consensus (otherwise called as "!"
     :return: (str) the consensus sequence
     """
+
     seq_list = []
     for names, seq in d.items():
         seq_list.append(seq)
@@ -768,7 +769,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 start_pos = int(primerpair.split("_")[0])
                 end_pos = int(primerpair.split("_")[1])
                 for i in range(start_pos, end_pos + 1):
-                    positional_depth[str(i)] += depth
+                    positional_depth[str(i).zfill(4)] += depth
+            # positional_depth = collections.OrderedDict(sorted(positional_depth.items(), key=lambda x: x[0]))
 
             # build the consensus sequence
             try:
