@@ -7,7 +7,7 @@ import csv
 from operator import itemgetter
 import pysam
 import collections
-
+from pprint import pprint
 """
 Written by Nick Loman as part of the ZiBRA pipeline (zibraproject.org)
 edited by Colin Anthony
