@@ -759,7 +759,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 primer_pairs.append(primer_pair)
 
             primers_and_depths = zip(primer_pairs, primers_depth)
-            yax_lims = 1000
+            yax_lims = 500
             plot_primer_depth(primer_pairs, primers_depth, sample_name, yax_lims, primer_pair_depth_outfile)
 
             # set minimum depth for calling a position in the consensus sequence per primer region
