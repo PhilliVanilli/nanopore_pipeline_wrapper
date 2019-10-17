@@ -667,7 +667,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     continue
 
                 # make nanopolish consensus
-                print(f"\nrunning: making consensuses sequence from nanopolish")
+                print(f"\nrunning: making consensuses sequence from nanopolish\n")
                 consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
                     f"{nanopolish_cons_file}"
                 with open(log_file, "a") as handle:
@@ -681,7 +681,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
 
                 # make bcftools consensus
-                print(f"\nrunning: making consensuses sequence from bcftools")
+                print(f"\nrunning: making consensuses sequence from bcftools\n")
                 min_base_qual = 30  # default=13
                 p_val_of_variant = 0.2  # default=0.5
                 bcf_vcf_cmd = f"bcftools mpileup --threads {threads} --min-BQ {min_base_qual} -Ou " \
@@ -707,7 +707,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
 
                 # make artic-ebov consensus
-                print(f"\nrunning: making consensuses sequence from artic_ebov method")
+                print(f"\nrunning: making consensuses sequence from artic_ebov method\n")
                 shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
                 cons_file_script = pathlib.Path(script_folder, "margin_cons.py")
 
@@ -735,7 +735,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     continue
 
             # convert bam file to a mutli fasta alignment
-            print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit")
+            print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
 
             sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
             msa_from_bam = f"java -jar {sam4web} -r '{ref_name}:{ref_start}-{ref_end}' -o {msa_fasta} " \
@@ -790,7 +790,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     handle.write(f">{sample_name}\n{cons}\n")
                 # write consensus to master consensus file
                 with open(all_samples_consens_seqs, 'a') as fh:
-                    fh.write(f">{sample_name}\n{cons}\n")
+                    fh.write(f">{sample_name}\n{cons.replace('-', '')}\n")
 
                 # plot depth for sample
                 depth_list = depth_profile["non_gap"]
@@ -805,11 +805,16 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 if not run:
                     pass
 
-            print(f"Completed processing sample: {sample_name}")
+            print(f"Completed processing sample: {sample_name}\n\n")
             with open(log_file, "a") as handle:
                 handle.write(f"\n\n________________\nCompleted processing sample: {sample_name}\n\n________________\n")
 
+        # add reference to all consensus file
+        with open(all_samples_consens_seqs, 'a') as fh:
+            fh.write(f">{reference}\n{chosen_ref_scheme}\n")
+
         # align the master consensus file
+        print("aligning consensus sequence from all samples\n")
         tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
         mafft_cmd = f"mafft {str(all_samples_consens_seqs)} > {str(tmp_file)}"
         run = try_except_continue_on_fail(mafft_cmd)
@@ -821,7 +826,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             os.rename(tmp_file, str(all_samples_consens_seqs))
             tmp_file.unlink()
 
-    print("sample processing completed")
+    print("sample processing completed\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
 
