@@ -182,7 +182,7 @@ def consensus_maker(d, positional_depth, min_depth):
     return consensus, depth_profile
 
 
-def plot_primer_depth(depth_list, primer_pairs, sample_name, outfile):
+def plot_primer_depth(depth_list, primer_pairs, sample_name, yax_lims, outfile):
 
 
     x_vals = [range(len(primer_pairs))]
@@ -192,6 +192,8 @@ def plot_primer_depth(depth_list, primer_pairs, sample_name, outfile):
     ax.set_ylabel('Sequencing depth')
     ax.set_xlabel('Primer pair')
     ax.set_title(sample_name)
+    if yax_lims:
+        ax.set_ylim(ymin=0, ymax=yax_lims)
 
     plt.plot(x_vals, y_vals)
 
@@ -726,7 +728,10 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             fasta_msa_d = fasta_to_dct(msa_fasta)
 
             # get json dump of reads and primer pairs
-            json_file = pathlib.Path(sample_folder).glob("*read_primer_pair_lookup.json")
+            json_file = list(pathlib.Path(sample_folder).glob("*read_primer_pair_lookup.json"))[0]
+            if not json_file.is_file():
+                print("the json file containing primer pair depth info was not found")
+
             with open(str(json_file), 'r') as jd:
                 read_primer_pairs_dct = json.load(jd)
             primer_pair_depth_outfile = pathlib.Path(plot_folder, sample_name + "_per_primer_depth.png")
@@ -737,7 +742,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 primers_depth.append(len(names_list))
                 primer_pairs.append(primer_pair)
             primers_depth = zip(primer_pairs, primers_depth)
-            plot_primer_depth(primers_depth, primer_pairs, sample_name, primer_pair_depth_outfile)
+            yax_lims = 400
+            plot_primer_depth(primers_depth, primer_pairs, sample_name, yax_lims, primer_pair_depth_outfile)
 
             # set minimum depth for calling a position in the consensus sequence per primer region
             positional_depth = collections.defaultdict(int)

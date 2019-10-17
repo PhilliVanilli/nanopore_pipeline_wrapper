@@ -158,9 +158,9 @@ def main(infile, outfile, bedfile):
     infile = pysam.AlignmentFile(infile, "rb")
     outfile = pathlib.Path(outfile).absolute()
     outfile_trimmed = pysam.AlignmentFile(str(outfile), "wh", template=infile)
-    suppl_out = outfile + "_excluded_sequences_as_Supplementary.sam"
+    suppl_out = str(outfile) + "_excluded_sequences_as_Supplementary.sam"
     marked_supplementary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
-    primer_mismatch_file = outfile + "_excluded_as_primer_mismatched.sam"
+    primer_mismatch_file = str(outfile) + "_excluded_as_primer_mismatched.sam"
     marked_primer_missmatch = pysam.AlignmentFile(primer_mismatch_file, "wh", template=infile)
     read_prime_pair_lookup = pathlib.Path(outfile.parent, "read_primer_pair_lookup.json")
 
