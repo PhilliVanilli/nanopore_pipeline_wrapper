@@ -191,34 +191,35 @@ def consensus_maker(d, positional_depth, min_depth):
     return consensus, depth_profile
 
 
-def autolabel(rects, axis):
+def autolabel(barchart, axis, primer_depth):
     """
     Attach a text label above each bar displaying its height
     """
-    for rect in rects:
-        height = rect.get_height()
-        axis.text(rect.get_x() + rect.get_width()/2., 1.05*height,
-                '%d' % int(height),
-                ha='center', va='bottom')
+    for i, bar in enumerate(barchart):
+        height = bar.get_height()
+        label = primer_depth[i]
+
+        axis.text(bar.get_x() + bar.get_width()/2., 1.05*height,
+                f'{label}', ha='center', va='bottom')
 
 
-def plot_primer_depth(primer_pairs, primer_depth, sample_name, yax_lims, outfile):
+def plot_primer_depth(primer_pairs, primer_depth, percent_primers_depth, sample_name, outfile):
 
-    y_vals = primer_depth
+    y_vals = percent_primers_depth
 
     fig, ax = plt.subplots()
-    ax.set_ylabel('Sequencing depth')
+    ax.set_ylabel('Sequencing depth \n(% of max primer pair depth)')
     ax.set_xlabel('Primer pair')
     ax.set_title(sample_name)
-    if yax_lims:
-        ax.set_ylim(ymin=0, ymax=yax_lims)
+
+    ax.set_ylim(ymin=0, ymax=121)
 
     # plot bar graph
     bar_plot = plt.bar(primer_pairs, y_vals)
     plt.xticks(rotation='vertical')
 
     # add value to each bar
-    autolabel(bar_plot, ax)
+    autolabel(bar_plot, ax, primer_depth)
 
     w = 6.8
     h = 4
@@ -767,9 +768,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 primers_depth.append(len(names_list))
                 primer_pairs.append(primer_pair)
 
+            max_depth = max(primers_depth)
+            percent_primers_depth = [round(val/max_depth*100, 2) for val in primers_depth]
             primers_and_depths = zip(primer_pairs, primers_depth)
-            yax_lims = 500
-            plot_primer_depth(primer_pairs, primers_depth, sample_name, yax_lims, primer_pair_depth_outfile)
+
+            plot_primer_depth(primer_pairs, primers_depth, percent_primers_depth,
+                              sample_name, primer_pair_depth_outfile)
 
             # set minimum depth for calling a position in the consensus sequence per primer region
             positional_depth = collections.defaultdict(int)
