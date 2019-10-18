@@ -567,88 +567,88 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             with open(log_file, "a") as handle:
                 handle.write(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
 
-            # # run read mapping using bwa
-            # print(f"\nrunning: bwa read mapping\n")
-            # bwa_cmd = f"bwa mem -t {threads} -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
-            #     f"2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: bwa read mapping\n")
-            #     handle.write(f"{bwa_cmd}\n")
-            # run = try_except_continue_on_fail(bwa_cmd)
-            # if not run:
-            #     continue
-            #
-            # # convert sam to bam
-            # print(f"\nrunning: sam to bam conversion")
-            # sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file} 2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: sam to bam conversion\n")
-            #     handle.write(f"{sam_bam_cmd}\n")
-            # run = try_except_continue_on_fail(sam_bam_cmd)
-            # if not run:
-            #     continue
-            #
-            # # sort bam file
-            # print(f"\nrunning: sorting bam file")
-            # sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: sorting bam file\n")
-            #     handle.write(f"{sort_sam_cmd}\n")
-            # run = try_except_continue_on_fail(sort_sam_cmd)
-            # if not run:
-            #     continue
-            #
-            # # index bam file
-            # print(f"\nrunning: indexing bam file")
-            # index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: indexing bam file\n")
-            #     handle.write(f"{index_bam_cmd}\n")
-            # run = try_except_continue_on_fail(index_bam_cmd)
-            # if not run:
-            #     continue
-            #
-            # # remove primer sequences with custom script
-            # print(f"\nrunning: trim primer sequences from bam file")
-            # trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
-            # trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
-            #     f"-b {chosen_ref_scheme_bed_file} 2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
-            #     handle.write(f"{trim_primer}\n")
-            # run = try_except_continue_on_fail(trim_primer)
-            # if not run:
-            #     continue
-            #
-            # # convert sam to bam
-            # print(f"\nrunning: sam to bam conversion of trimmed file")
-            # sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: sam to bam conversion\n")
-            #     handle.write(f"{sam_bam_cmd}\n")
-            # run = try_except_continue_on_fail(sam_bam_cmd)
-            # if not run:
-            #     continue
-            #
-            # # sort bam file
-            # print(f"\nrunning: sorting bam file")
-            # sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
-            #     f"2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: sorting bam file\n{sort_sam_cmd}\n")
-            # run = try_except_continue_on_fail(sort_sam_cmd)
-            # if not run:
-            #     continue
-            #
-            # # index trimmed bam file
-            # print(f"\nrunning: indexing bam file")
-            # index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
-            # with open(log_file, "a") as handle:
-            #     handle.write(f"\nrunning: indexing bam file\n")
-            #     handle.write(f"{index_bam_cmd}\n")
-            # run = try_except_continue_on_fail(index_bam_cmd)
-            # if not run:
-            #     continue
+            # run read mapping using bwa
+            print(f"\nrunning: bwa read mapping\n")
+            bwa_cmd = f"bwa mem -t {threads} -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
+                f"2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: bwa read mapping\n")
+                handle.write(f"{bwa_cmd}\n")
+            run = try_except_continue_on_fail(bwa_cmd)
+            if not run:
+                continue
+            
+            # convert sam to bam
+            print(f"\nrunning: sam to bam conversion")
+            sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sam to bam conversion\n")
+                handle.write(f"{sam_bam_cmd}\n")
+            run = try_except_continue_on_fail(sam_bam_cmd)
+            if not run:
+                continue
+            
+            # sort bam file
+            print(f"\nrunning: sorting bam file")
+            sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sorting bam file\n")
+                handle.write(f"{sort_sam_cmd}\n")
+            run = try_except_continue_on_fail(sort_sam_cmd)
+            if not run:
+                continue
+            
+            # index bam file
+            print(f"\nrunning: indexing bam file")
+            index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: indexing bam file\n")
+                handle.write(f"{index_bam_cmd}\n")
+            run = try_except_continue_on_fail(index_bam_cmd)
+            if not run:
+                continue
+            
+            # remove primer sequences with custom script
+            print(f"\nrunning: trim primer sequences from bam file")
+            trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
+            trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
+                f"-b {chosen_ref_scheme_bed_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
+                handle.write(f"{trim_primer}\n")
+            run = try_except_continue_on_fail(trim_primer)
+            if not run:
+                continue
+            
+            # convert sam to bam
+            print(f"\nrunning: sam to bam conversion of trimmed file")
+            sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sam to bam conversion\n")
+                handle.write(f"{sam_bam_cmd}\n")
+            run = try_except_continue_on_fail(sam_bam_cmd)
+            if not run:
+                continue
+            
+            # sort bam file
+            print(f"\nrunning: sorting bam file")
+            sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
+                f"2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: sorting bam file\n{sort_sam_cmd}\n")
+            run = try_except_continue_on_fail(sort_sam_cmd)
+            if not run:
+                continue
+            
+            # index trimmed bam file
+            print(f"\nrunning: indexing bam file")
+            index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\nrunning: indexing bam file\n")
+                handle.write(f"{index_bam_cmd}\n")
+            run = try_except_continue_on_fail(index_bam_cmd)
+            if not run:
+                continue
 
             if not msa_cons_only:
                 # run nanopolish
@@ -745,9 +745,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
                 handle.write(f"{msa_from_bam}\n")
-            # run = try_except_continue_on_fail(msa_from_bam)
-            # if not run:
-            #     continue
+            run = try_except_continue_on_fail(msa_from_bam)
+            if not run:
+                continue
 
             # convert multi fasta alignment to consensus sequence
             fasta_msa_d = fasta_to_dct(msa_fasta)
@@ -769,7 +769,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
             primers_and_depths = zip(primer_pairs, primers_depth)
             yax_lims = 500
-            # plot_primer_depth(primer_pairs, primers_depth, sample_name, yax_lims, primer_pair_depth_outfile)
+            plot_primer_depth(primer_pairs, primers_depth, sample_name, yax_lims, primer_pair_depth_outfile)
 
             # set minimum depth for calling a position in the consensus sequence per primer region
             positional_depth = collections.defaultdict(int)
@@ -795,7 +795,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 # plot depth for sample
                 depth_list = depth_profile["non_gap"]
                 depth_outfile = pathlib.Path(plot_folder, sample_name + "_sequencing_depth.png")
-                # plot_depth(depth_list, sample_name, depth_outfile)
+                plot_depth(depth_list, sample_name, depth_outfile)
 
             if not msa_cons_only:
                 # add all consensus seqs into one file
