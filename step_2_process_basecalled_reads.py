@@ -84,8 +84,8 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
                     seq_len = len(record.seq)
                     if seq_len > max_len or seq_len < min_len:
                         continue
-                else:
-                    SeqIO.write([record], handle, "fastq")
+                    else:
+                        SeqIO.write([record], handle, "fastq")
             except ValueError as e:
                 print("Failed on fastq file:", fastq, "\n", e, "\n", "Continuing with next fastq file")
                 continue
@@ -142,12 +142,13 @@ def d_freq_lists_pos(dna_list, n, positional_depth):
     return counts_dict, depth_dict
 
 
-def consensus_maker(d, positional_depth, min_depth):
+def consensus_maker(d, positional_depth, min_depth, use_gaps):
     """
     Create a consensus sequence from an alignment
     :param d: (dict) dictionary of an alignment (key = seq name (str): value = aligned sequence (str))
     :param positional_depth: (dict) key = str(position), value = int(depth)
     :param min_depth: (int) the minimum depth required to call a base in the consensus (otherwise called as "!"
+    :param use_gaps (bool) use gap characters when making consensus
     :return: (str) the consensus sequence
     """
     seq_list = []
@@ -168,13 +169,19 @@ def consensus_maker(d, positional_depth, min_depth):
         if positional_depth[position_lookup] <= min_depth:
             consensus += str("N")
         else:
-            dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', "-"]}
+            if use_gaps:
+                dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', "-"]}
+            else:
+                dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N']}
             # get the base with the highest frequency value
             base_with_max_freq = max(dct, key=dct.get)
             # get the highest frequency value
             max_freq = dct[base_with_max_freq]
             # if multiple bases share the max frequency make a list of them for degeneracy code lookup
-            most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T', "-"] if dct[base] == max_freq))
+            if use_gaps:
+                most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T', "-"] if dct[base] == max_freq))
+            else:
+                most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T'] if dct[base] == max_freq))
 
             if len(most_freq_bases) == 1:
                 consensus += str(base_with_max_freq)
@@ -268,7 +275,7 @@ def cat_sample_names(barcode, run_name):
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads, max_fastq_size):
+         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -785,7 +792,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
             # build the consensus sequence
             try:
-                cons, depth_profile = consensus_maker(fasta_msa_d, positional_depth, min_depth)
+                cons, depth_profile = consensus_maker(fasta_msa_d, positional_depth, min_depth, use_gaps)
             except IndexError as e:
                 with open(log_file, "a") as handle:
                     handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")
@@ -872,6 +879,8 @@ if __name__ == "__main__":
     parser.add_argument("-mfs", "--max_fastq_size", type=int, default=2000000,
                         help="The maximum number of sequences in a fastq for chunking the big fastq "
                              "into smaller parts for prechop to run on", required=False)
+    parser.add_argument("--use_gaps", default=False, action="store_true",
+                        help="use gap characters when making the consensus sequences", required=False)
 
     args = parser.parse_args()
 
@@ -888,6 +897,7 @@ if __name__ == "__main__":
     msa_cons_only = args.msa_cons_only
     threads = args.threads
     max_fastq_size = args.max_fastq_size
+    use_gaps = args.use_gaps
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads, max_fastq_size)
+         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps)
