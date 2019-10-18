@@ -12,7 +12,7 @@ from itertools import groupby
 import pandas as pd
 from Bio import SeqIO
 import matplotlib.pyplot as plt
-from pprint import pprint
+
 
 __author__ = 'Colin Anthony'
 
@@ -168,13 +168,13 @@ def consensus_maker(d, positional_depth, min_depth):
         if positional_depth[position_lookup] <= min_depth:
             consensus += str("N")
         else:
-            dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N']}
+            dct = {base: master_profile[base][position] for base in ['A', 'C', 'G', 'T', 'N', "-"]}
             # get the base with the highest frequency value
             base_with_max_freq = max(dct, key=dct.get)
             # get the highest frequency value
             max_freq = dct[base_with_max_freq]
             # if multiple bases share the max frequency make a list of them for degeneracy code lookup
-            most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T'] if dct[base] == max_freq))
+            most_freq_bases = list(sorted(base for base in ['A', 'C', 'G', 'T', "-"] if dct[base] == max_freq))
 
             if len(most_freq_bases) == 1:
                 consensus += str(base_with_max_freq)
