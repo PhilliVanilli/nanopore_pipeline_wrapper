@@ -839,6 +839,22 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             all_samples_consens_seqs.unlink()
             os.rename(tmp_file, str(all_samples_consens_seqs))
 
+            # calculate coverage
+            ref_length = len(ref_seq)
+            coverage_outfile =pathlib.Path(project_path, f"{run_name}_genome_coverage.csv")
+            all_consensus_d = fasta_to_dct(all_samples_consens_seqs)
+            aligned_ref = all_consensus_d[ref_name]
+            del all_consensus_d[ref_name]
+            with open(coverage_outfile, 'w') as fh:
+                fh.write("sample_name,genome_coverage\n")
+                for v_name, v_seq in all_consensus_d.items():
+                    seq_coverage = 0
+                    for i, base in enumerate(v_seq.upper()):
+                        if base != "-" and base != "N" and aligned_ref[i] != "-":
+                            seq_coverage += 1
+                    percent_coverage = round((seq_coverage/ref_length) * 100, 2)
+                    fh.write(f"{v_name},{percent_coverage}\n")
+
     print("sample processing completed\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
