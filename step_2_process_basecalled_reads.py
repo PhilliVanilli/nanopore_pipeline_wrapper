@@ -760,6 +760,11 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # convert multi fasta alignment to consensus sequence
             fasta_msa_d = fasta_to_dct(msa_fasta)
 
+            if len(fasta_msa_d) == 0:
+                print(f"{sam_name} alignment had no sequences\nskipping to next sample\n")
+                with open(log_file, "a") as handle:
+                    handle.write(f"{sam_name} alignment had no sequences\nskipping to next sample\n")
+                continue
             # get json dump of reads and primer pairs
             json_file = list(pathlib.Path(sample_folder).glob("*read_primer_pair_lookup.json"))[0]
             if not json_file.is_file():
