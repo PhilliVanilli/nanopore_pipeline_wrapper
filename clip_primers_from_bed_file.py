@@ -1,5 +1,4 @@
 import argparse
-import sys
 from json import dump
 import pathlib
 from copy import copy
@@ -7,7 +6,7 @@ import csv
 from operator import itemgetter
 import pysam
 import collections
-from pprint import pprint
+
 """
 Written by Nick Loman as part of the ZiBRA pipeline (zibraproject.org)
 edited by Colin Anthony
@@ -242,8 +241,8 @@ def main(infile, outfile, bedfile):
     print(f"Total: {total}\nUnmapped: {unmapped} ({round(unmapped/total*100, 2)}%)\n"
           f"Supplementary: {suppl} ({round(suppl/total*100, 2)}%)\n"
           f"Mismatched primers: {missmatched} ({round(missmatched/total*100, 2)}%)\n"
-          f"indel in primer sequences: {bad} ({round(bad/total*100, 2)}%)"
-          f"Good sequences: {good} ({round(good/total*100, 2)}%)")
+          f"indel in primer sequences: {bad} ({round(bad/total*100, 2)}%)\n"
+          f"Good sequences: {good} ({round(good/total*100, 2)}%)\n")
 
     print("\nFinished soft clipping bam file\n")
 
