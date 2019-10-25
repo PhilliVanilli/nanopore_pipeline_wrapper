@@ -275,7 +275,7 @@ def cat_sample_names(barcode, run_name):
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps):
+         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps, use_bwa):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -526,12 +526,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
+        if use_bwa:
+            make_index_cmd = f"bwa index {chosen_ref_scheme}"
+            with open(log_file, "a") as handle:
+                handle.write(f"\n{make_index_cmd}\n")
 
-        make_index_cmd = f"bwa index {chosen_ref_scheme}"
-        with open(log_file, "a") as handle:
-            handle.write(f"\n{make_index_cmd}\n")
-
-        try_except_exit_on_fail(make_index_cmd)
+            try_except_exit_on_fail(make_index_cmd)
 
         all_sample_files = pathlib.Path(sample_folder).glob("*/*.fastq")
 
@@ -574,21 +574,35 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             print(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
             with open(log_file, "a") as handle:
                 handle.write(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
-
-            # run read mapping using bwa
-            print(f"\nrunning: bwa read mapping\n")
-            bwa_cmd = f"bwa mem -t {threads} -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
-                f"2>&1 | tee -a {log_file}"
-            with open(log_file, "a") as handle:
-                handle.write(f"\nrunning: bwa read mapping\n")
-                handle.write(f"{bwa_cmd}\n")
-            run = try_except_continue_on_fail(bwa_cmd)
-            if not run:
-                continue
+            if not use_bwa:
+                # run read mapping using minimap
+                print(f"\nrunning: minimap2 read mapping\n")
+                minimap2_cmd = f"minimap2 -a -Y -t 8 -x ava-ont {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
+                               f"2>&1 | tee -a {log_file}"
+                print(minimap2_cmd)
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nrunning: bwa read mapping\n")
+                    handle.write(f"{minimap2_cmd}\n")
+                run = try_except_continue_on_fail(minimap2_cmd)
+                if not run:
+                    continue
+            else:
+                # run read mapping using bwa
+                print(f"\nrunning: bwa read mapping\n")
+                bwa_cmd = f"bwa mem -t {threads} -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
+                          f"2>&1 | tee -a {log_file}"
+                print(bwa_cmd)
+                with open(log_file, "a") as handle:
+                    handle.write(f"\nrunning: bwa read mapping\n")
+                    handle.write(f"{bwa_cmd}\n")
+                run = try_except_continue_on_fail(bwa_cmd)
+                if not run:
+                    continue
             
             # convert sam to bam
             print(f"\nrunning: sam to bam conversion")
             sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file} 2>&1 | tee -a {log_file}"
+            print(sam_bam_cmd)
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: sam to bam conversion\n")
                 handle.write(f"{sam_bam_cmd}\n")
@@ -599,6 +613,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # sort bam file
             print(f"\nrunning: sorting bam file")
             sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
+            print(sort_sam_cmd)
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: sorting bam file\n")
                 handle.write(f"{sort_sam_cmd}\n")
@@ -609,6 +624,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # index bam file
             print(f"\nrunning: indexing bam file")
             index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
+            print(index_bam_cmd)
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: indexing bam file\n")
                 handle.write(f"{index_bam_cmd}\n")
@@ -621,6 +637,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
             trim_primer = f"python {trim_script} -in {bam_file_sorted} -o {trimmed_sam_file} " \
                 f"-b {chosen_ref_scheme_bed_file} 2>&1 | tee -a {log_file}"
+            print(trim_primer)
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
                 handle.write(f"{trim_primer}\n")
@@ -631,6 +648,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # convert sam to bam
             print(f"\nrunning: sam to bam conversion of trimmed file")
             sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
+            print(sam_bam_cmd)
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: sam to bam conversion\n")
                 handle.write(f"{sam_bam_cmd}\n")
@@ -642,6 +660,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             print(f"\nrunning: sorting bam file")
             sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
                 f"2>&1 | tee -a {log_file}"
+            print(sort_sam_cmd)
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: sorting bam file\n{sort_sam_cmd}\n")
             run = try_except_continue_on_fail(sort_sam_cmd)
@@ -651,6 +670,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             # index trimmed bam file
             print(f"\nrunning: indexing bam file")
             index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
+            print(index_bam_cmd)
             with open(log_file, "a") as handle:
                 handle.write(f"\nrunning: indexing bam file\n")
                 handle.write(f"{index_bam_cmd}\n")
@@ -902,6 +922,8 @@ if __name__ == "__main__":
                              "into smaller parts for prechop to run on", required=False)
     parser.add_argument("--use_gaps", default=False, action="store_true",
                         help="use gap characters when making the consensus sequences", required=False)
+    parser.add_argument("--use_bwa", default=False, action="store_true",
+                        help="use bwa instead of minimap2 to map reads to reference", required=False)
 
     args = parser.parse_args()
 
@@ -919,6 +941,7 @@ if __name__ == "__main__":
     threads = args.threads
     max_fastq_size = args.max_fastq_size
     use_gaps = args.use_gaps
+    use_bwa =args.use_bwa
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps)
+         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps, use_bwa)
