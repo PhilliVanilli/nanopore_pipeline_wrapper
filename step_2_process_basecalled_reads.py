@@ -275,7 +275,7 @@ def cat_sample_names(barcode, run_name):
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps, use_bwa):
+         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps, use_minmap2):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -526,7 +526,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
-        if use_bwa:
+        if not use_minmap2:
             make_index_cmd = f"bwa index {chosen_ref_scheme}"
             with open(log_file, "a") as handle:
                 handle.write(f"\n{make_index_cmd}\n")
@@ -574,7 +574,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             print(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
             with open(log_file, "a") as handle:
                 handle.write(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
-            if not use_bwa:
+            if use_minmap2:
                 # run read mapping using minimap
                 print(f"\nrunning: minimap2 read mapping\n")
                 minimap2_cmd = f"minimap2 -a -Y -t 8 -x ava-ont {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
@@ -922,7 +922,7 @@ if __name__ == "__main__":
                              "into smaller parts for prechop to run on", required=False)
     parser.add_argument("--use_gaps", default=False, action="store_true",
                         help="use gap characters when making the consensus sequences", required=False)
-    parser.add_argument("--use_bwa", default=False, action="store_true",
+    parser.add_argument("--use_minmap2", default=False, action="store_true",
                         help="use bwa instead of minimap2 to map reads to reference", required=False)
 
     args = parser.parse_args()
@@ -941,7 +941,7 @@ if __name__ == "__main__":
     threads = args.threads
     max_fastq_size = args.max_fastq_size
     use_gaps = args.use_gaps
-    use_bwa =args.use_bwa
+    use_minmap2 =args.use_minmap2
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps, use_bwa)
+         rerun_step_only, msa_cons_only, threads, max_fastq_size, use_gaps, use_minmap2)
