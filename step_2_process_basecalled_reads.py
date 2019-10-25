@@ -63,7 +63,7 @@ def fasta_to_dct(file_name):
     my_gen = py3_fasta_iter(file_name)
     for i, (k, v) in enumerate(my_gen):
         # resolve for duplicate sequence headers
-        new_key = k.replace(" ", "_") + str(i).zfill(4)
+        new_key = k.replace(" ", "_") + "_" + str(i).zfill(4)
         dct[new_key] = v.upper()
 
     return dct
@@ -598,7 +598,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 run = try_except_continue_on_fail(bwa_cmd)
                 if not run:
                     continue
-            
+
             # convert sam to bam
             print(f"\nrunning: sam to bam conversion")
             sam_bam_cmd = f"samtools view -bSh {sam_name} -o {bam_file} 2>&1 | tee -a {log_file}"
@@ -609,7 +609,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(sam_bam_cmd)
             if not run:
                 continue
-            
+
             # sort bam file
             print(f"\nrunning: sorting bam file")
             sort_sam_cmd = f"samtools sort -T {sample_name} {bam_file} -o {bam_file_sorted} 2>&1 | tee -a {log_file}"
@@ -620,7 +620,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(sort_sam_cmd)
             if not run:
                 continue
-            
+
             # index bam file
             print(f"\nrunning: indexing bam file")
             index_bam_cmd = f"samtools index {bam_file_sorted} 2>&1 | tee -a {log_file}"
@@ -631,7 +631,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(index_bam_cmd)
             if not run:
                 continue
-            
+
             # remove primer sequences with custom script
             print(f"\nrunning: trim primer sequences from bam file")
             trim_script = pathlib.Path(script_folder, "clip_primers_from_bed_file.py")
@@ -644,7 +644,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(trim_primer)
             if not run:
                 continue
-            
+
             # convert sam to bam
             print(f"\nrunning: sam to bam conversion of trimmed file")
             sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
@@ -655,7 +655,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(sam_bam_cmd)
             if not run:
                 continue
-            
+
             # sort bam file
             print(f"\nrunning: sorting bam file")
             sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
@@ -666,7 +666,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run = try_except_continue_on_fail(sort_sam_cmd)
             if not run:
                 continue
-            
+
             # index trimmed bam file
             print(f"\nrunning: indexing bam file")
             index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
@@ -854,7 +854,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         run = try_except_continue_on_fail(mafft_cmd)
         if not run:
             print(f"could not align {all_samples_consens_seqs}")
-            pass
+            sys.exit("exiting")
         else:
             all_samples_consens_seqs.unlink()
             os.rename(tmp_file, str(all_samples_consens_seqs))
@@ -863,8 +863,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             ref_length = len(ref_seq)
             coverage_outfile =pathlib.Path(project_path, f"{run_name}_genome_coverage.csv")
             all_consensus_d = fasta_to_dct(all_samples_consens_seqs)
-            aligned_ref = all_consensus_d[ref_name]
-            del all_consensus_d[ref_name]
+            ref_lookup_name = list(all_consensus_d.keys())[0]
+            aligned_ref = all_consensus_d[ref_lookup_name]
+            del all_consensus_d[ref_lookup_name]
             with open(coverage_outfile, 'w') as fh:
                 fh.write("sample_name,genome_coverage\n")
                 for v_name, v_seq in all_consensus_d.items():
