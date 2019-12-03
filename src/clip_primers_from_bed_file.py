@@ -154,13 +154,13 @@ def is_correctly_paired(p1, p2):
 def main(infile, outfile, bedfile):
 
     bed = read_bed_file(bedfile)
-    infile = pysam.AlignmentFile(infile, "rb")
+    sam_infile = pysam.AlignmentFile(infile, "rb")
     outfile = pathlib.Path(outfile).absolute()
-    outfile_trimmed = pysam.AlignmentFile(str(outfile), "wh", template=infile)
+    outfile_trimmed = pysam.AlignmentFile(str(outfile), "wh", template=sam_infile)
     suppl_out = str(outfile) + "_excluded_sequences_as_Supplementary.sam"
-    marked_supplementary = pysam.AlignmentFile(suppl_out, "wh", template=infile)
+    marked_supplementary = pysam.AlignmentFile(suppl_out, "wh", template=sam_infile)
     primer_mismatch_file = str(outfile) + "_excluded_as_primer_mismatched.sam"
-    marked_primer_missmatch = pysam.AlignmentFile(primer_mismatch_file, "wh", template=infile)
+    marked_primer_missmatch = pysam.AlignmentFile(primer_mismatch_file, "wh", template=sam_infile)
     read_prime_pair_lookup = pathlib.Path(outfile.parent, "read_primer_pair_lookup.json")
 
     # set counters
@@ -173,7 +173,7 @@ def main(infile, outfile, bedfile):
 
     read_prime_pair_lookup_dict = collections.defaultdict(list)
 
-    for s in infile:
+    for s in sam_infile:
         total += 1
         cigar = copy(s.cigartuples)
 
