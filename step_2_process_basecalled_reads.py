@@ -66,9 +66,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
     chosen_ref_scheme_bed_file = chosen_ref_scheme.replace(".reference.fasta", ".scheme.bed")
     ref_name, ref_seq = list(py3_fasta_iter(chosen_ref_scheme))[0]
     ref_name = ref_name.split()[0]
-    if not ref_start:
+    if not ref_start or ref_start == 0:
         ref_start = 1
-    if not ref_end:
+    if not ref_end or ref_end > len(ref_seq):
         ref_end = len(ref_seq)
 
     print(f"\nReference is {chosen_ref_scheme}\n")
