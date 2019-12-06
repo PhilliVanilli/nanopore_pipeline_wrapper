@@ -1,23 +1,13 @@
 import os
 import sys
-import subprocess
 import argparse
 import pathlib
-import shutil
-import collections
 import datetime
-import math
-import json
 import pandas as pd
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
-from src.misc_functions import fasta_to_dct
 from src.misc_functions import gather_fastqs
-from src.misc_functions import consensus_maker
-from src.misc_functions import plot_primer_depth
-from src.misc_functions import plot_depth
-from src.misc_functions import rename_fasta
 from src.misc_functions import cat_sample_names
 from src.basecall_guppy import main as gupppy_basecall
 from src.demultiplex_guppy import main as guppy_demultiplex
@@ -81,7 +71,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     if run_step == 0:
-        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, threads, basecall_mode)
+        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, threads, gpu_cores, basecall_mode)
         if run and not rerun_step_only:
             run_step = 1
         elif run and rerun_step_only:
@@ -117,7 +107,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 handle.write(f"could not find the concatenated fastq, {master_reads_file}\nexiting")
             sys.exit("exiting")
 
-        run = guppy_demultiplex(master_reads_file, guppy_path, demultiplexed_folder, threads)
+        run = guppy_demultiplex(master_reads_file, guppy_path, demultiplexed_folder, threads, gpu_cores)
         if run and not rerun_step_only and not msa_cons_only:
             run_step = 3
         elif run and rerun_step_only:
@@ -327,9 +317,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
                 continue
             run = sample_analysis(sample_fastq, script_folder, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
-                            chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps,
-                            all_samples_consens_seqs,
-                            reference_slice)
+                                  chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps,
+                                  all_samples_consens_seqs, reference_slice)
             if not run:
                 continue
             # # set input and output file names
@@ -626,7 +615,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             #
             # print(f"Completed processing sample: {sample_name}\n\n")
             # with open(log_file, "a") as handle:
-            #     handle.write(f"\n\n________________\nCompleted processing sample: {sample_name}\n\n________________\n")
+            #     handle.write(f"\n\n________________\nCompleted processing sample: {sample_name}\n\n_______________\n")
 
         # align the master consensus file
         sample_summary(project_path, all_samples_consens_seqs, ref_seq, run_name)
@@ -734,7 +723,7 @@ if __name__ == "__main__":
     gpu_cores = args.gpu_cores
     max_fastq_size = args.max_fastq_size
     use_gaps = args.use_gaps
-    use_minmap2 =args.use_minmap2
+    use_minmap2 = args.use_minmap2
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
          run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, max_fastq_size, use_gaps, use_minmap2)
