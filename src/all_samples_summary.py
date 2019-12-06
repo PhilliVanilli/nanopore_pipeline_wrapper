@@ -4,7 +4,7 @@ import os
 import sys
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import fasta_to_dct
-
+from src.misc_functions import py3_fasta_iter
 __author__ = 'Colin Anthony'
 
 
@@ -12,12 +12,13 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
     pass
 
 
-def main(project_path, all_samples_consens_seqs, ref_seq, run_name):
+def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
 
     print("aligning consensus sequence from all samples\n")
     tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
     mafft_cmd = f"mafft {str(all_samples_consens_seqs)} > {str(tmp_file)}"
 
+    ref_name, ref_seq = list(py3_fasta_iter(chosen_ref_scheme))[0]
     print(mafft_cmd)
     run = try_except_continue_on_fail(mafft_cmd)
     if not run:
@@ -52,18 +53,18 @@ if __name__ == "__main__":
                                      formatter_class=Formatter)
 
     parser.add_argument('-in', '--project_path', type=str, default=None, required=True,
-                        help='The path and name of the infile')
+                        help='The path to the project folder')
     parser.add_argument('-a', '--all_samples_consens_seqs', type=str, default=None, required=True,
-                        help='The path for the outfile')
-    parser.add_argument('-r', '--ref_seq', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The path name of the file to contain consensus sequences from all samples')
+    parser.add_argument('-r', '--chosen_ref_scheme', type=str, default=None, required=True,
+                        help='The path and name of the reference fasta file')
     parser.add_argument('-n', '--run_name', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The name of the sequencing run')
 
     args = parser.parse_args()
     project_path = args.project_path
     all_samples_consens_seqs = args.all_samples_consens_seqs
-    ref_seq = args.ref_seq
+    chosen_ref_scheme = args.chosen_ref_scheme
     run_name = args.run_name
 
-    main(project_path, all_samples_consens_seqs, ref_seq, run_name)
+    main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)

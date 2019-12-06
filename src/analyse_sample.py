@@ -9,6 +9,7 @@ from src.misc_functions import consensus_maker
 from src.misc_functions import fasta_to_dct
 from src.misc_functions import plot_primer_depth
 from src.misc_functions import plot_depth
+from src.misc_functions import py3_fasta_iter
 
 
 __author__ = 'Colin Anthony'
@@ -18,18 +19,22 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
     pass
 
 
-def main(infile, script_folder, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
+def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
          chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps, all_samples_consens_seqs,
          reference_slice):
     # force absolute file paths
     sample_fastq = pathlib.Path(infile).absolute()
-
+    script_folder = pathlib.Path(__file__).absolute().parents[1]
     if not sample_fastq.is_file():
         print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
         with open(log_file, "a") as handle:
             handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
         return False
 
+    if not reference_slice:
+        ref_name, ref_seq = list(py3_fasta_iter(chosen_ref_scheme))[0]
+        ref_name = ref_name.split()[0]
+        reference_slice = f"{ref_name}:0-{len(ref_seq)}"
 
     # set input and output file names
     sample_name = pathlib.Path(sample_fastq).stem
@@ -335,35 +340,34 @@ if __name__ == "__main__":
                                      formatter_class=Formatter)
 
     parser.add_argument('-in', '--infile', type=str, default=None, required=True,
-                        help='The path and name of the infile')
-    parser.add_argument('-sf', '--script_folder', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The path and name of the sample fastq file')
     parser.add_argument('-pf', '--plot_folder', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The path to where the plots will be written')
     parser.add_argument('-lf', '--log_file', type=str, default=None, required=True,
-                        help='The path for the outfile')
-    parser.add_argument('-mm', '--use_minmap2', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The name and path for the logfile')
+    parser.add_argument("-mm", "--use_minmap2", default=False, action="store_true",
+                        help="use bwa instead of minimap2 to map reads to reference", required=False)
     parser.add_argument('-rs', '--chosen_ref_scheme', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The name of the reference scheme fasta file')
     parser.add_argument('-bf', '--chosen_ref_scheme_bed_file', type=str, default=None, required=True,
-                        help='The path for the outfile')
-    parser.add_argument('-t', '--threads', type=str, default=None, required=True,
-                        help='The path for the outfile')
-    parser.add_argument('-m', '--msa_cons_only', type=str, default=None, required=True,
-                        help='The path for the outfile')
-    parser.add_argument('-mi', '--min_depth', type=str, default=None, required=True,
-                        help='The path for the outfile')
-    parser.add_argument('-ug', '--use_gaps', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The name of the reference scheme bed file')
+    parser.add_argument("-t", "--threads", type=int, default=8,
+                        help="The number of threads to use for bwa, nanopolish etc...", required=False)
+    parser.add_argument("-m", "--msa_cons_only", default=False, action="store_true",
+                        help="Only do MSA to consensus sequence for variant calling", required=False)
+    parser.add_argument("-d", "--min_depth", type=int, default=100, help="The minimum coverage to call a position in "
+                                                                         "the MSA to consensus", required=False)
+    parser.add_argument("-ug", "--use_gaps", default=False, action="store_true",
+                        help="use gap characters when making the consensus sequences", required=False)
     parser.add_argument('-ac', '--all_samples_consens_seqs', type=str, default=None, required=True,
-                        help='The path for the outfile')
+                        help='The path and name of the file to contain consensus sequences from all samples')
     parser.add_argument('-rn', '--reference_slice', type=str, default=None, required=False,
-                        help='The path for the outfile')
+                        help='The formatted code for the region of the reference to use\n'
+                             'ie: ref_name:start_pos-end_pos\n'
+                             'Default will use entire reference length\n')
 
     args = parser.parse_args()
     infile = args.infile
-    script_folder = args.script_folder
     plot_folder = args.plot_folder
     log_file = args.log_file
     use_minmap2 = args.use_minmap2
@@ -376,6 +380,6 @@ if __name__ == "__main__":
     all_samples_consens_seqs = args.all_samples_consens_seqs
     reference_slice = args.reference_slice
 
-    main(infile, script_folder, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
+    main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
          chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps, all_samples_consens_seqs,
          reference_slice)

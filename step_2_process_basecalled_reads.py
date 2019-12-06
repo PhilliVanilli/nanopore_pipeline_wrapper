@@ -618,7 +618,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             #     handle.write(f"\n\n________________\nCompleted processing sample: {sample_name}\n\n_______________\n")
 
         # align the master consensus file
-        sample_summary(project_path, all_samples_consens_seqs, ref_seq, run_name)
+        sample_summary(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)
         # print("aligning consensus sequence from all samples\n")
         # tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
         # mafft_cmd = f"mafft {str(all_samples_consens_seqs)} > {str(tmp_file)}"
@@ -694,7 +694,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--msa_cons_only", default=False, action="store_true",
                         help="Only do MSA to consensus sequence for variant calling", required=False)
     parser.add_argument("-t", "--threads", type=int, default=8,
-                        help="The number of threads to use for porechop, bwa, nanopolish etc...", required=False)
+                        help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=4,
                         help="The number of gpu threads to use ...", required=False)
     parser.add_argument("-mfs", "--max_fastq_size", type=int, default=2000000,
