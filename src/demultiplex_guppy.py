@@ -39,9 +39,9 @@ if __name__ == "__main__":
                         help='The path to guppy exexutable')
     parser.add_argument('-o', '--outpath', type=str, default=None, required=True,
                         help='The path for the outfile')
-    parser.add_argument("-t", "--threads", type=int, default=8,
+    parser.add_argument("-t", "--threads", type=int, default=4,
                         help="The number of threads to use for demultiplexing, bwa, nanopolish etc...", required=False)
-    parser.add_argument("-g", "--gpu_threads", type=int, default=8,
+    parser.add_argument("-g", "--gpu_threads", type=int, default=4,
                         help="The number of gpu threads to use", required=False)
     args = parser.parse_args()
     infile = args.infile
