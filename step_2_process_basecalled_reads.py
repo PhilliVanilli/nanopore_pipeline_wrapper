@@ -316,7 +316,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 with open(log_file, "a") as handle:
                     handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
                 continue
-            run = sample_analysis(sample_fastq, script_folder, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
+            run = sample_analysis(sample_fastq, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
                                   chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps,
                                   all_samples_consens_seqs, reference_slice)
             if not run:
