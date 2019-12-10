@@ -336,7 +336,8 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='',
+    parser = argparse.ArgumentParser(description='This script runs the read mapping, plotting and consensus generation'
+                                                 'for a sample',
                                      formatter_class=Formatter)
 
     parser.add_argument('-in', '--infile', type=str, default=None, required=True,

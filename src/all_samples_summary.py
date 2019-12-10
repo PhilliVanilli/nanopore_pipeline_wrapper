@@ -49,7 +49,10 @@ def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='',
+    parser = argparse.ArgumentParser(description='This script is meant to post process the consensus sequences from the'
+                                                 'nanopore_pipeline, collecting consensus sequences from all samples'
+                                                 'aligning them together with the mapping reference, and outputting '
+                                                 '% coverage stats for each sample',
                                      formatter_class=Formatter)
 
     parser.add_argument('-in', '--project_path', type=str, default=None, required=True,
