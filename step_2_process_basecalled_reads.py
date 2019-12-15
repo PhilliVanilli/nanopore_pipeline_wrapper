@@ -9,8 +9,8 @@ from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
 from src.misc_functions import gather_fastqs
 from src.misc_functions import cat_sample_names
-from src.basecall_guppy import main as gupppy_basecall
-from src.demultiplex_guppy import main as guppy_demultiplex
+from basecall_guppy import main as gupppy_basecall
+from demultiplex_guppy import main as guppy_demultiplex
 from src.analyse_sample import main as sample_analysis
 from src.all_samples_summary import main as sample_summary
 
