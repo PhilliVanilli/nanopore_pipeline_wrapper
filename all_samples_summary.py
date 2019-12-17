@@ -26,7 +26,7 @@ def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
         sys.exit("exiting")
     else:
         all_samples_consens_seqs.unlink()
-        os.rename(tmp_file, str(all_samples_consens_seqs))
+        os.rename(str(tmp_file), str(all_samples_consens_seqs))
 
         # calculate coverage
         ref_length = len(ref_seq)

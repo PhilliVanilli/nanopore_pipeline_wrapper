@@ -209,7 +209,7 @@ def plot_primer_depth(primer_pairs, primer_depth, percent_primers_depth, sample_
     ax.set_xlabel('Primer pair')
     ax.set_title(sample_name)
 
-    ax.set_ylim(ymin=0, ymax=121)
+    ax.set_ylim(bottom=0, top=121)
 
     # plot bar graph
     bar_plot = plt.bar(primer_pairs, y_vals)

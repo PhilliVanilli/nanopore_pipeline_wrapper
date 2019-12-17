@@ -11,8 +11,8 @@ from src.misc_functions import gather_fastqs
 from src.misc_functions import cat_sample_names
 from basecall_guppy import main as gupppy_basecall
 from demultiplex_guppy import main as guppy_demultiplex
-from src.analyse_sample import main as sample_analysis
-from src.all_samples_summary import main as sample_summary
+from analyse_sample import main as sample_analysis
+from all_samples_summary import main as sample_summary
 
 __author__ = 'Colin Anthony'
 
@@ -22,14 +22,13 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, max_fastq_size, use_gaps, use_minmap2):
+         rerun_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, use_gaps, use_minmap2, guppy_path):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
     primer_scheme_dir = pathlib.Path(script_folder, "primer-schemes")
 
     # get folder paths
-    guppy_path = pathlib.Path("")
     project_path = pathlib.Path(project_path).absolute()
     plot_folder = pathlib.Path(project_path, "seq_depth_plots")
     plot_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
@@ -71,7 +70,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     if run_step == 0:
-        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, threads, gpu_cores, basecall_mode)
+        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode)
         if run and not rerun_step_only:
             run_step = 1
         elif run and rerun_step_only:
@@ -116,120 +115,6 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run_step = 4
         else:
             sys.exit("demultiplexing failed")
-
-        # # get number of sequences and split into subfiles if too large
-        # max_fastq_size_porechop = max_fastq_size
-        # grep_cmd = f"grep -c '^@' {master_reads_file}"
-        # try:
-        #     fastq_entries = int(subprocess.check_output(grep_cmd, shell=True).decode(sys.stdout.encoding).strip())
-        # except subprocess.CalledProcessError as e:
-        #     with open(log_file, "a") as handle:
-        #         handle.write(f"could not grep the fastq file, error was:\n{e}\nexiting")
-        #     sys.exit("exiting")
-        #
-        # num_of_chunks = math.ceil(fastq_entries / max_fastq_size_porechop)
-        # if num_of_chunks > 1.0:
-        #     # file is possibly too large for system memory to run porechop, chunk into parts
-        #     split_into_parts_by_x_lines = int(fastq_entries / num_of_chunks) * 4
-        #     print(f"chunking large fastq file into files of size {split_into_parts_by_x_lines/4} sequences")
-        #     with open(log_file, "a") as handle:
-        #         handle.write(f"\nexperiment run fastq file too large for porechop\nchunking file into "
-        #                      f"files of size: {split_into_parts_by_x_lines/4} sequences\n")
-        #
-        #     split_cmd = f"split --additional-suffix _temp_chunk.fastq -l {split_into_parts_by_x_lines} " \
-        #         f"{master_reads_file} {str(master_reads_file.stem).replace('all', 'all_')}"
-        #
-        #     with open(log_file, "a") as handle:
-        #         handle.write(f"\n command to split file into parts:\n{split_cmd}\n")
-        #
-        #     try_except_exit_on_fail(split_cmd)
-        #
-        #     # for each chunk, do porechop
-        #     colleted_temp_folders = []
-        #     chunks_to_run = list(pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"))
-        #
-        #     for file in chunks_to_run:
-        #         with open(log_file, "a") as handle:
-        #             handle.write(f"\nrunning porechop on chunk: {file}\n")
-        #         tmp_demix_folder = pathlib.Path(demultiplexed_folder, file.stem)
-        #         tmp_demix_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
-        #         colleted_temp_folders.append(tmp_demix_folder)
-        #         demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {file} " \
-        #                           f"--discard_middle " \
-        #                           f"--require_two_barcodes " \
-        #                           f"--barcode_threshold 80 " \
-        #                           f"--threads {threads} " \
-        #                           f"--check_reads 10000 " \
-        #                           f"--barcode_diff 5 " \
-        #                           f"--barcode_dir {tmp_demix_folder} " \
-        #                           f"> {file}.demultiplexreport.txt"
-        #
-        #         with open(log_file, "a") as handle:
-        #             handle.write(f"demultiplex on chunk:\n{demultiplex_cmd}\n")
-        #
-        #         print(f"demultiplexing file {file}")
-        #         try_except_exit_on_fail(demultiplex_cmd)
-        #
-        #     # collect file path for each barcode from each demultiplexed chunk
-        #     collect_demultiplexed_files = collections.defaultdict(list)
-        #     for folder in pathlib.Path(demultiplexed_folder).glob(f"*temp_chunk"):
-        #         for file in folder.glob("*.fastq"):
-        #             barcode_id = file.stem
-        #             collect_demultiplexed_files[barcode_id].append(file)
-        #
-        #     # concatenate barcode file from each chunk into one file
-        #     print("concatenating porechop demultiplexed files from each chunk\n")
-        #     with open(log_file, "a") as handle:
-        #         handle.write(f"\nconcatenating porechop demultiplexed files from each chunk\n")
-        #     for barcode, file_list in collect_demultiplexed_files.items():
-        #         files_to_cat = " ".join([str(x) for x in file_list])
-        #         barcode_outfile = pathlib.Path(demultiplexed_folder, f"{barcode}.fastq")
-        #         cat_cmd = f"cat {files_to_cat} > {barcode_outfile}"
-        #         try_except_exit_on_fail(cat_cmd)
-        #
-        #     # remove each chunked file and the temp demultiplex folder and files from each chunk
-        #     print(f"\nremoving chunked files and temp demultiplexed files from each chunk\n")
-        #     with open(log_file, "a") as handle:
-        #         handle.write(f"\nremoving chunked files and temp demultiplexed files from each chunk\n")
-        #     for folder in colleted_temp_folders:
-        #         shutil.rmtree(str(folder))
-        #     for file in pathlib.Path(project_path).glob(f"{master_reads_file.stem}*temp_chunk.fastq"):
-        #         os.unlink(str(file))
-        #
-        # else:
-        #     # file size within limit, no need to chunk
-        #     demultiplex_cmd = f"porechop --format fastq --verbosity 2 -i {master_reads_file} " \
-        #                       f"--discard_middle " \
-        #                       f"--require_two_barcodes " \
-        #                       f"--barcode_threshold 80 " \
-        #                       f"--threads {threads} " \
-        #                       f"--check_reads 10000 " \
-        #                       f"--barcode_diff 5 " \
-        #                       f"--barcode_dir {demultiplexed_folder} " \
-        #                       f"> {master_reads_file}.demultiplexreport.txt"
-        #
-        #     with open(log_file, "a") as handle:
-        #         handle.write(f"\n{demultiplex_cmd}\n")
-        #
-        #     try_except_exit_on_fail(demultiplex_cmd)
-        #
-        # # add run name to each demultiplexed file
-        # print("adding run_name to demultiplexed files")
-        # with open(log_file, "a") as handle:
-        #     handle.write("adding run_name to demultiplexed files\n")
-        #
-        # for file in list(demultiplexed_folder.glob("*.fastq")):
-        #     path = file.parents[0]
-        #     name = file.name
-        #     if len(name) == 10:
-        #         new_name = f"{run_name}_{name}"
-        #         new_file = pathlib.Path(path, new_name)
-        #         os.rename(str(file), new_file)
-        #
-        # if not rerun_step_only:
-        #     run_step = 3
-        # else:
-        #     sys.exit("Run step only completed, exiting")
 
     if run_step == 3 and not msa_cons_only:
         # index concatenated fastq with nanopolish
@@ -318,7 +203,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 continue
             run = sample_analysis(sample_fastq, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
                                   chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps,
-                                  all_samples_consens_seqs, reference_slice)
+                                  all_samples_consens_seqs, reference_slice, master_reads_file)
             if not run:
                 continue
 
@@ -347,10 +232,12 @@ if __name__ == "__main__":
     parser.add_argument("-re", "--reference_end", default=False, type=int,
                         help="The end coordinate of the reference sequence for read mapping. Default = full length",
                         required=False)
-    parser.add_argument("-mi", "--min_len", type=int, help="The minimum read length allowed:\n = 300 for 400bp amplicon"
-                                                           " design\n = 700 for 800bp amplicon design", required=True)
-    parser.add_argument("-ma", "--max_len", type=int, help="The maximum read length allowed:\n = 500 for 400bp amplicon"
-                                                           " design\n = 900 for 800bp amplicon design", required=True)
+    parser.add_argument("-mi", "--min_len", type=int, default=700,
+                        help="The minimum read length allowed:\n = 300 for 400bp amplicon design"
+                                                             "\n = 700 for 800bp amplicon design", required=False)
+    parser.add_argument("-ma", "--max_len", type=int, default=900,
+                        help="The maximum read length allowed:\n = 500 for 400bp amplicon design"
+                             "                                \n = 900 for 800bp amplicon design", required=False)
     parser.add_argument("-d", "--min_depth", type=int, default=100, help="The minimum coverage to call a position in "
                                                                          "the MSA to consensus", required=False)
     parser.add_argument("--run_step", default=1, type=int, required=False,
@@ -373,13 +260,12 @@ if __name__ == "__main__":
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=4,
                         help="The number of gpu threads to use ...", required=False)
-    parser.add_argument("-mfs", "--max_fastq_size", type=int, default=2000000,
-                        help="The maximum number of sequences in a fastq for chunking the big fastq "
-                             "into smaller parts for prechop to run on", required=False)
     parser.add_argument("--use_gaps", default=False, action="store_true",
                         help="use gap characters when making the consensus sequences", required=False)
     parser.add_argument("--use_minmap2", default=False, action="store_true",
                         help="use bwa instead of minimap2 to map reads to reference", required=False)
+    parser.add_argument("-p", "--guppy_path", default=argparse.SUPPRESS, type=str,
+                        help="The path to the guppy executables eg: '.../ont-guppy/bin/'", required=True)
 
     args = parser.parse_args()
 
@@ -392,14 +278,14 @@ if __name__ == "__main__":
     max_len = args.max_len
     min_depth = args.min_depth
     run_step = args.run_step
-    run_step_only = args.rerun_step_only
+    run_step_only = args.run_step_only
     basecall_mode = args.basecall_mode
     msa_cons_only = args.msa_cons_only
     threads = args.threads
     gpu_cores = args.gpu_cores
-    max_fastq_size = args.max_fastq_size
     use_gaps = args.use_gaps
     use_minmap2 = args.use_minmap2
+    guppy_path = args.guppy_path
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, max_fastq_size, use_gaps, use_minmap2)
+         run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, use_gaps, use_minmap2, guppy_path)

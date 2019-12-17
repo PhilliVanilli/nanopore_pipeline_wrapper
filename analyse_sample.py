@@ -10,6 +10,7 @@ from src.misc_functions import fasta_to_dct
 from src.misc_functions import plot_primer_depth
 from src.misc_functions import plot_depth
 from src.misc_functions import py3_fasta_iter
+from src.misc_functions import rename_fasta
 
 
 __author__ = 'Colin Anthony'
@@ -21,10 +22,10 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
          chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps, all_samples_consens_seqs,
-         reference_slice):
+         reference_slice, master_fastq_file):
     # force absolute file paths
     sample_fastq = pathlib.Path(infile).absolute()
-    script_folder = pathlib.Path(__file__).absolute().parents[1]
+    script_folder = pathlib.Path(__file__).absolute().parent
     if not sample_fastq.is_file():
         print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
         with open(log_file, "a") as handle:
@@ -36,7 +37,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
         ref_name = ref_name.split()[0]
         reference_slice = f"{ref_name}:0-{len(ref_seq)}"
 
-    # set input and output file names
+    # set input and output file name
     sample_name = pathlib.Path(sample_fastq).stem
     sample_folder = pathlib.Path(sample_fastq).parent
     sam_name = pathlib.Path(sample_folder, sample_name + "_mapped.sam")
@@ -165,89 +166,89 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
     if not run:
         return False
 
-    # if not msa_cons_only:
-    #     # run nanopolish
-    #     print(f"\nrunning: nanopolish variant calling")
-    #     nanopolish_cmd_v11 = f"nanopolish variants  -r --snps -o {vcf_file} " \
-    #                          f"-w '{ref_name}:{ref_start}-{ref_end}' -t {threads} --ploidy=1 -v " \
-    #                          f"-r {master_reads_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
-    #                          f"--min-candidate-frequency=0.3" \
-    #                          f"--min-candidate-depth=10 --max-haplotypes=1000000"
-    #     with open(log_file, "a") as handle:
-    #         handle.write(f"\nrunning: nanopolish variant calling using:\n")
-    #         handle.write(f"{nanopolish_cmd_v11}\n")
-    #
-    #     # run = try_except_continue_on_fail(nanopolish_cmd_v11)
-    #     # if not run:
-    #     #     continue
-    #
-    #     # make nanopolish consensus
-    #     print(f"\nrunning: making consensuses sequence from nanopolish\n")
-    #     consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
-    #                     f"{nanopolish_cons_file}"
-    #     with open(log_file, "a") as handle:
-    #         handle.write(f"\nrunning: making consensuses sequence from from nanopolish using:\n")
-    #         handle.write(f"{consensus_cmd}\n")
-    #     # run = try_except_continue_on_fail(consensus_cmd)
-    #     # if not run:
-    #     #     continue
-    #
-    #     # rename the fasta header to the sample name
-    #     # rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
-    #
-    #     # make bcftools consensus
-    #     print(f"\nrunning: making consensuses sequence from bcftools\n")
-    #     min_base_qual = 30  # default=13
-    #     p_val_of_variant = 0.2  # default=0.5
-    #     bcf_vcf_cmd = f"bcftools mpileup --threads {threads} --min-BQ {min_base_qual} -Ou " \
-    #                   f"-f {chosen_ref_scheme} {sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} " \
-    #                   f"--ploidy 1 -Ov -o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-    #     bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-    #     bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
-    #                    f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
-    #     with open(log_file, "a") as handle:
-    #         handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
-    #         handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
-    #     run = try_except_continue_on_fail(bcf_vcf_cmd)
-    #     if not run:
-    #         return False
-    #     run = try_except_continue_on_fail(bcf_index_cmd)
-    #     if not run:
-    #         return False
-    #     run = try_except_continue_on_fail(bcf_cons_cmd)
-    #     if not run:
-    #         return False
-    #
-    #     # rename the fasta header to the sample name
-    #     rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
-    #
-    #     # make artic-ebov consensus
-    #     print(f"\nrunning: making consensuses sequence from artic_ebov method\n")
-    #     shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
-    #     cons_file_script = pathlib.Path(script_folder, "src", "margin_cons.py")
-    #
-    #     set_min_depth = 100  # default=200
-    #     set_min_qual = 200  # default=200
-    #
-    #     cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} " \
-    #                f"-b {rename_trimmed_bam_file} -n {sample_name} -d {set_min_depth} -q {set_min_qual}"
-    #     with open(log_file, "a") as handle:
-    #         handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
-    #         handle.write(f"{cons_cmd}\n")
-    #     # run = try_except_continue_on_fail(cons_cmd)
-    #     # if not run:
-    #     #     continue
-    #
-    #     # rename the fasta header to the sample name
-    #     # rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
-    #
-    #     # plot quality for sample
-    #     plot_file_script = pathlib.Path(script_folder, "src", "plot_depths_qual.py")
-    #     plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -o {project_path}" \
-    #                f"-n {sample_name} 2>&1 | tee -a {log_file}"
-    #     # run = try_except_continue_on_fail(plot_cmd)
-    #     # if not run:
-    #     #     continue
+    if not msa_cons_only:
+        # run nanopolish
+        print(f"\nrunning: nanopolish variant calling")
+        nanopolish_cmd_v11 = f"nanopolish variants  -r --snps -o {vcf_file} " \
+                             f"-w '{reference_slice}' -t {threads} --ploidy=1 -v " \
+                             f"-r {master_fastq_file} -b {sorted_trimmed_bam_file} -g {chosen_ref_scheme} " \
+                             f"--min-candidate-frequency=0.3" \
+                             f"--min-candidate-depth=10 --max-haplotypes=1000000"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: nanopolish variant calling using:\n")
+            handle.write(f"{nanopolish_cmd_v11}\n")
+
+        run = try_except_continue_on_fail(nanopolish_cmd_v11)
+        if not run:
+            return False
+
+        # make nanopolish consensus
+        print(f"\nrunning: making consensuses sequence from nanopolish\n")
+        consensus_cmd = f"nanopolish vcf2fasta --skip-checks -g {chosen_ref_scheme} {vcf_file} > " \
+                        f"{nanopolish_cons_file}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: making consensuses sequence from from nanopolish using:\n")
+            handle.write(f"{consensus_cmd}\n")
+        run = try_except_continue_on_fail(consensus_cmd)
+        if not run:
+            return False
+
+        # rename the fasta header to the sample name
+        rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
+
+        # make bcftools consensus
+        print(f"\nrunning: making consensuses sequence from bcftools\n")
+        min_base_qual = 30  # default=13
+        p_val_of_variant = 0.2  # default=0.5
+        bcf_vcf_cmd = f"bcftools mpileup --threads {threads} --min-BQ {min_base_qual} -Ou " \
+                      f"-f {chosen_ref_scheme} {sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} " \
+                      f"--ploidy 1 -Ov -o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+        bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+        bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
+                       f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
+            handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
+        run = try_except_continue_on_fail(bcf_vcf_cmd)
+        if not run:
+            return False
+        run = try_except_continue_on_fail(bcf_index_cmd)
+        if not run:
+            return False
+        run = try_except_continue_on_fail(bcf_cons_cmd)
+        if not run:
+            return False
+
+        # rename the fasta header to the sample name
+        rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
+
+        # make artic-ebov consensus
+        print(f"\nrunning: making consensuses sequence from artic_ebov method\n")
+        shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
+        cons_file_script = pathlib.Path(script_folder, "src", "margin_cons.py")
+
+        set_min_depth = 100  # default=200
+        set_min_qual = 200  # default=200
+
+        cons_cmd = f"python {cons_file_script} -r {chosen_ref_scheme} -v {vcf_file} " \
+                   f"-b {rename_trimmed_bam_file} -n {sample_name} -d {set_min_depth} -q {set_min_qual}"
+        with open(log_file, "a") as handle:
+            handle.write(f"\nrunning: making consensuses sequence from artic_ebov method:\n")
+            handle.write(f"{cons_cmd}\n")
+        run = try_except_continue_on_fail(cons_cmd)
+        if not run:
+            return False
+
+        # rename the fasta header to the sample name
+        rename_fasta(artic_cons_file, sample_name, "artic_ebov_nanopolish_vcf_cons")
+
+        # plot quality for sample
+        plot_file_script = pathlib.Path(script_folder, "src", "plot_depths_qual.py")
+        plot_cmd = f"python {plot_file_script} -r {chosen_ref_scheme} -v {vcf_file} -o {plot_folder}" \
+                   f"-n {sample_name} 2>&1 | tee -a {log_file}"
+        run = try_except_continue_on_fail(plot_cmd)
+        if not run:
+            return False
 
     # convert bam file to a mutli fasta alignment
     print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
@@ -366,6 +367,8 @@ if __name__ == "__main__":
                         help='The formatted code for the region of the reference to use\n'
                              'ie: ref_name:start_pos-end_pos\n'
                              'Default will use entire reference length\n')
+    parser.add_argument('-mf', '--master_fastq_file', type=str, default=None, required=True,
+                        help='The path and name of the master fastq file')
 
     args = parser.parse_args()
     infile = args.infile
@@ -380,7 +383,8 @@ if __name__ == "__main__":
     use_gaps = args.use_gaps
     all_samples_consens_seqs = args.all_samples_consens_seqs
     reference_slice = args.reference_slice
+    master_fastq_file = args.master_fastq_file
 
     main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
          chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps, all_samples_consens_seqs,
-         reference_slice)
+         reference_slice, master_fastq_file)
