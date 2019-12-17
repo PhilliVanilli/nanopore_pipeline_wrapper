@@ -21,8 +21,8 @@ def main(inpath, guppy_path, outpath, threads, gpu_threads):
     else:
         gpu_settings = f"-x 'auto'"
 
-    guppy_demux_cmd = f"{str(guppy_demultiplexer)} -i {inpath} -s {outpath} -t {threads} --compress_fastq" \
-                      f"--require_barcodes_both_ends --trim_barcodes --num_barcoding_buffers 2 --records_per_fastq 0" \
+    guppy_demux_cmd = f"{str(guppy_demultiplexer)} -i {inpath} -s {outpath} -t {threads} " \
+                      f"--require_barcodes_both_ends --trim_barcodes --num_barcoding_buffers 2 --records_per_fastq 0 " \
                       f"{gpu_settings}"
 
     run = try_except_continue_on_fail(guppy_demux_cmd)

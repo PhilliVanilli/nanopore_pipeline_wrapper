@@ -7,7 +7,6 @@ import pandas as pd
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
-from src.misc_functions import gather_fastqs
 from src.misc_functions import cat_sample_names
 from basecall_guppy import main as gupppy_basecall
 from demultiplex_guppy import main as guppy_demultiplex
@@ -79,44 +78,31 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             sys.exit("Basecalling failed")
 
     if run_step == 1:
-        # gather all fastq's into one file and all sequencing_summary.txt's into one file
-        print(f"\nrunning: collecting all fastq files into one file")
-        with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: collecting all fastq files into one file")
-        gather_fastq_status = gather_fastqs(fastq_dir, run_name, max_len, min_len)
-        if not gather_fastq_status:
-            print("gathering fastq files failed, concatenated fastq file was not found")
-            with open(log_file, "a") as handle:
-                handle.write("gathering fastq files failed, concatenated fastq file was not found\nexiting")
-            sys.exit("exiting")
-        if not rerun_step_only:
-            run_step = 2
-        else:
-            sys.exit("\ngathering fastq's completed, exiting\n")
-
-    if run_step == 2:
         # demultiplex
         print(f"\nrunning: demultiplexing")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: demultiplexing")
 
-        if not master_reads_file.is_file():
-            print(f"could not find the concatenated fastq, {master_reads_file}")
-            with open(log_file, "a") as handle:
-                handle.write(f"could not find the concatenated fastq, {master_reads_file}\nexiting")
-            sys.exit("exiting")
+        run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_cores)
 
-        run = guppy_demultiplex(master_reads_file, guppy_path, demultiplexed_folder, threads, gpu_cores)
+        if run:
+            for file in demultiplexed_folder.glob("barcode*/*.fastq"):
+                this_folder = file.parent
+                barcode_number = file.parent.parts[-1]
+                new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
+                os.rename(str(file), str(new_name))
+                os.rmdir(this_folder)
+
         if run and not rerun_step_only and not msa_cons_only:
-            run_step = 3
+            run_step = 2
         elif run and rerun_step_only:
             sys.exit("demultiplexing completed, exiting")
         elif run and msa_cons_only:
-            run_step = 4
+            run_step = 3
         else:
             sys.exit("demultiplexing failed")
 
-    if run_step == 3 and not msa_cons_only:
+    if run_step == 2 and not msa_cons_only:
         # index concatenated fastq with nanopolish
         print(f"\nrunning: nanopolish index on fast5/fastq files")
         with open(log_file, "a") as handle:
@@ -129,13 +115,13 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     f"{master_reads_file} "
         try_except_exit_on_fail(nanopolish_index_cmd)
         if not rerun_step_only:
-            run_step = 4
+            run_step = 3
         else:
             sys.exit("Run step only completed, exiting")
     else:
-        run_step = 4
+        run_step = 3
 
-    if run_step == 4:
+    if run_step == 3:
         # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
         print("collecting demultiplexed files into sample.fastq files based on specified sample barcode combinations\n")
         with open(log_file, "a") as handle:
@@ -170,11 +156,11 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 continue
 
         if not rerun_step_only:
-            run_step = 5
+            run_step = 4
         else:
             sys.exit("Run step only completed, exiting")
 
-    if run_step == 5:
+    if run_step == 4:
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
@@ -243,11 +229,10 @@ if __name__ == "__main__":
     parser.add_argument("--run_step", default=1, type=int, required=False,
                         help="Run the pipeline starting at this step:\n"
                              "--run_step 0 = basecall reads with Guppy\n"
-                             "--run_step 1 = gather fastqs\n"
-                             "--run_step 2 = demultiplex with Guppy\n"
-                             "--run_step 3 = index master fastq file\n"
-                             "--run_step 4 = concatenate demultiplexed files into sample files\n"
-                             "--run_step 5 = run read mapping and all the variant calling steps on each sample\n")
+                             "--run_step 1 = demultiplex with Guppy\n"
+                             "--run_step 2 = index master fastq file\n"
+                             "--run_step 3 = concatenate demultiplexed files into sample files\n"
+                             "--run_step 4 = run read mapping and all the variant calling steps on each sample\n")
 
     parser.add_argument("--run_step_only", default=False, action="store_true",
                         help="Only run the step specified in 'run_step'", required=False)

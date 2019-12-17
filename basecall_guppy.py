@@ -22,7 +22,7 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode):
     if gpu_threads == 0:
         gpu_settings = ""
     else:
-        gpu_settings = f"--gpu_runners_per_device {gpu_threads}  --num_callers 4 -x 'auto'" #--device {cuda_device}
+        gpu_settings = f"--gpu_runners_per_device {gpu_threads}  --num_callers 4 -x 'auto' " #--device {cuda_device}
 
     # add arg to keep fastq size to 4000 seqs in case something fails, easier to find where it went wrong and fix
     guppy_basecall_cmd = f"{str(guppy_basecaller)} -i {inpath} -r -s {outpath} -c {config} " \
