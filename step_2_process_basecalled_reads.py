@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--run_step_only", default=False, action="store_true",
                         help="Only run the step specified in 'run_step'", required=False)
-    parser.add_argument("-b", "--basecall_mode", default=0, choices=[0, 1],
+    parser.add_argument("-b", "--basecall_mode", default=0, choices=[0, 1], type=int,
                         help="0 = basecall in fast mode\n"
                              "1 = basecall in high accuracy mode\n", required=False)
     parser.add_argument("-m", "--msa_cons_only", default=False, action="store_true",
