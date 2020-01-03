@@ -82,7 +82,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         print(f"\nrunning: demultiplexing")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: demultiplexing")
-
+        if not list(fastq_dir.glob("*.fastq")):
+            fastq_dir = pathlib.Path(fastq_dir, "pass")
+        
         run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_cores)
 
         if run:
