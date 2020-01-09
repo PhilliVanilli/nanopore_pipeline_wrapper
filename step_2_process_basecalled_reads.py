@@ -89,12 +89,34 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_buffers, gpu_cores)
 
         if run:
-            for file in demultiplexed_folder.glob("barcode*/*.fastq"):
-                this_folder = file.parent
-                barcode_number = file.parent.parts[-1]
-                new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
-                os.rename(str(file), str(new_name))
-                os.rmdir(str(this_folder))
+            for folder in demultiplexed_folder.glob("barcode*"):
+                search = list(pathlib.Path(folder).glob("*.fastq"))
+                if not search:
+                    print(f"no files in folder\nskipping folder: {folder}\n")
+                    continue
+
+                if len(search) > 1:
+                    barcode_number = pathlib.Path(search[0]).parent.parts[-1]
+                    concat_outfile = f"cat_barcode_{barcode_number}.fastq"
+                    cat_cmd = f"cat "
+                    for file in search:
+                        cat_cmd += f"{str(file)} "
+                    cat_cmd += f" > {concat_outfile}"
+                    try_except_exit_on_fail(cat_cmd)
+                    new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
+                    vsearch_cmd = f"vsearch --fastq_filter {concat_outfile} -fastq_maxlen {max_len} " \
+                                  f"--fastq_minlen {min_len} --fastqout {new_name}"
+                    try_except_exit_on_fail(vsearch_cmd)
+
+                else:
+                    file = pathlib.Path(search[0])
+                    barcode_number = file.parent.parts[-1]
+                    new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
+                    vsearch_cmd = f"vsearch --fastq_filter {file} -fastq_maxlen {max_len} --fastq_minlen {min_len} -" \
+                                  f"-fastqout {new_name}"
+                    try_except_exit_on_fail(vsearch_cmd)
+
+                os.rmdir(str(folder))
 
         if run and not rerun_step_only and not msa_cons_only:
             run_step = 2
