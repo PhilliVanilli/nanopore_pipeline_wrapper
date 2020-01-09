@@ -21,7 +21,8 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, use_gaps, use_minmap2, guppy_path):
+         rerun_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         guppy_path):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -85,7 +86,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         if not list(fastq_dir.glob("*.fastq")):
             fastq_dir = pathlib.Path(fastq_dir, "pass")
         
-        run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_cores)
+        run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_buffers, gpu_cores)
 
         if run:
             for file in demultiplexed_folder.glob("barcode*/*.fastq"):
@@ -93,7 +94,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 barcode_number = file.parent.parts[-1]
                 new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
                 os.rename(str(file), str(new_name))
-                os.rmdir(this_folder)
+                os.rmdir(str(this_folder))
 
         if run and not rerun_step_only and not msa_cons_only:
             run_step = 2
@@ -247,6 +248,8 @@ if __name__ == "__main__":
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=4,
                         help="The number of gpu threads to use ...", required=False)
+    parser.add_argument("-b", "--gpu_buffers", type=int, default=16,
+                        help="The number of gpu buffers to use for demultiplexing", required=False)
     parser.add_argument("--use_gaps", default=False, action="store_true",
                         help="use gap characters when making the consensus sequences", required=False)
     parser.add_argument("--use_minmap2", default=False, action="store_true",
@@ -270,9 +273,11 @@ if __name__ == "__main__":
     msa_cons_only = args.msa_cons_only
     threads = args.threads
     gpu_cores = args.gpu_cores
+    gpu_buffers = args.gpu_buffers
     use_gaps = args.use_gaps
     use_minmap2 = args.use_minmap2
     guppy_path = args.guppy_path
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, use_gaps, use_minmap2, guppy_path)
+         run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         guppy_path)
