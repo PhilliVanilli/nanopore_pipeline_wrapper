@@ -16,7 +16,7 @@ def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
 
     print("aligning consensus sequence from all samples\n")
     tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
-    mafft_cmd = f"mafft {str(all_samples_consens_seqs)} > {str(tmp_file)}"
+    mafft_cmd = f"mafft --globalpair --maxiterate 1000 {str(all_samples_consens_seqs)} > {str(tmp_file)}"
 
     ref_name, ref_seq = list(py3_fasta_iter(chosen_ref_scheme))[0]
     print(mafft_cmd)
