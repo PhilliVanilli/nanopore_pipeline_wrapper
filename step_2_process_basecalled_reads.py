@@ -270,7 +270,7 @@ if __name__ == "__main__":
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=4,
                         help="The number of gpu threads to use ...", required=False)
-    parser.add_argument("-b", "--gpu_buffers", type=int, default=16,
+    parser.add_argument("-gb", "--gpu_buffers", type=int, default=16,
                         help="The number of gpu buffers to use for demultiplexing", required=False)
     parser.add_argument("--use_gaps", default=False, action="store_true",
                         help="use gap characters when making the consensus sequences", required=False)
