@@ -105,7 +105,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     try_except_exit_on_fail(cat_cmd)
                     new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
                     vsearch_cmd = f"vsearch --fastq_filter {concat_outfile} -fastq_maxlen {max_len} " \
-                                  f"--fastq_qmax 50 --fastq_minlen {min_len} --fastqout {new_name}"
+                                  f"--fastq_qmax 100 --fastq_minlen {min_len} --fastqout {new_name}"
                     try_except_exit_on_fail(vsearch_cmd)
 
                 else:
@@ -113,7 +113,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     barcode_number = file.parent.parts[-1]
                     new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
                     vsearch_cmd = f"vsearch --fastq_filter {file} -fastq_maxlen {max_len} --fastq_minlen {min_len} " \
-                                  f"--fastq_qmax 50 --fastqout {new_name}"
+                                  f"--fastq_qmax 100 --fastqout {new_name}"
                     try_except_exit_on_fail(vsearch_cmd)
 
                 os.rmdir(str(folder))
