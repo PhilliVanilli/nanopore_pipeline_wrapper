@@ -116,17 +116,21 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 cat_cmd += f" > {concat_outfile}"
                 try_except_exit_on_fail(cat_cmd)
                 new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
+                seqmagick_cmd = f"seqmagick quality-filter --min-length {min_len} --max-length {max_len} " \
+                                f"{concat_outfile} {new_name} "
                 vsearch_cmd = f"vsearch --fastq_filter {concat_outfile} -fastq_maxlen {max_len} " \
                               f"--fastq_qmax 100 --fastq_minlen {min_len} --fastqout {new_name}"
-                try_except_exit_on_fail(vsearch_cmd)
+                try_except_exit_on_fail(seqmagick_cmd)
 
             else:
                 file = pathlib.Path(search[0])
                 barcode_number = file.parent.parts[-1]
                 new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
+                seqmagick_cmd = f"seqmagick quality-filter --min-length {min_len} --max-length {max_len} " \
+                                f"{file} {new_name} "
                 vsearch_cmd = f"vsearch --fastq_filter {file} -fastq_maxlen {max_len} --fastq_minlen {min_len} " \
                               f"--fastq_qmax 100 --fastqout {new_name}"
-                try_except_exit_on_fail(vsearch_cmd)
+                try_except_exit_on_fail(seqmagick_cmd)
 
             # os.rmdir(str(folder))
 
