@@ -95,12 +95,18 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             sys.exit("demultiplexing failed")
 
     if run_step == 2:
+
+        pre_existing_files = list(demultiplexed_folder.glob("*.fastq"))
+        if pre_existing_files:
+            print("Found existing files in top level of demultiplex folder.\nThese files will be deleted")
+            for file in pre_existing_files:
+                os.unlink((str(file)))
+
         for folder in demultiplexed_folder.glob("barcode*"):
             search = list(pathlib.Path(folder).glob("*.fastq"))
             if not search:
                 print(f"no files in folder\nskipping folder: {folder}\n")
                 continue
-
             if len(search) > 1:
                 barcode_number = pathlib.Path(search[0]).parent.parts[-1]
                 concat_outfile = f"cat_barcode_{barcode_number}.fastq"
@@ -122,7 +128,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                               f"--fastq_qmax 100 --fastqout {new_name}"
                 try_except_exit_on_fail(vsearch_cmd)
 
-            os.rmdir(str(folder))
+            # os.rmdir(str(folder))
 
         if not rerun_step_only and not msa_cons_only:
             run_step = 3
