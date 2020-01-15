@@ -87,47 +87,53 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             fastq_dir = pathlib.Path(fastq_dir, "pass")
         
         run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_buffers, gpu_cores)
-
-        if run:
-            for folder in demultiplexed_folder.glob("barcode*"):
-                search = list(pathlib.Path(folder).glob("*.fastq"))
-                if not search:
-                    print(f"no files in folder\nskipping folder: {folder}\n")
-                    continue
-
-                if len(search) > 1:
-                    barcode_number = pathlib.Path(search[0]).parent.parts[-1]
-                    concat_outfile = f"cat_barcode_{barcode_number}.fastq"
-                    cat_cmd = f"cat "
-                    for file in search:
-                        cat_cmd += f"{str(file)} "
-                    cat_cmd += f" > {concat_outfile}"
-                    try_except_exit_on_fail(cat_cmd)
-                    new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
-                    vsearch_cmd = f"vsearch --fastq_filter {concat_outfile} -fastq_maxlen {max_len} " \
-                                  f"--fastq_qmax 100 --fastq_minlen {min_len} --fastqout {new_name}"
-                    try_except_exit_on_fail(vsearch_cmd)
-
-                else:
-                    file = pathlib.Path(search[0])
-                    barcode_number = file.parent.parts[-1]
-                    new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
-                    vsearch_cmd = f"vsearch --fastq_filter {file} -fastq_maxlen {max_len} --fastq_minlen {min_len} " \
-                                  f"--fastq_qmax 100 --fastqout {new_name}"
-                    try_except_exit_on_fail(vsearch_cmd)
-
-                os.rmdir(str(folder))
-
-        if run and not rerun_step_only and not msa_cons_only:
+        if run and not rerun_step_only:
             run_step = 2
         elif run and rerun_step_only:
             sys.exit("demultiplexing completed, exiting")
-        elif run and msa_cons_only:
-            run_step = 3
         else:
             sys.exit("demultiplexing failed")
 
-    if run_step == 2 and not msa_cons_only:
+    if run_step == 2:
+        for folder in demultiplexed_folder.glob("barcode*"):
+            search = list(pathlib.Path(folder).glob("*.fastq"))
+            if not search:
+                print(f"no files in folder\nskipping folder: {folder}\n")
+                continue
+
+            if len(search) > 1:
+                barcode_number = pathlib.Path(search[0]).parent.parts[-1]
+                concat_outfile = f"cat_barcode_{barcode_number}.fastq"
+                cat_cmd = f"cat "
+                for file in search:
+                    cat_cmd += f"{str(file)} "
+                cat_cmd += f" > {concat_outfile}"
+                try_except_exit_on_fail(cat_cmd)
+                new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
+                vsearch_cmd = f"vsearch --fastq_filter {concat_outfile} -fastq_maxlen {max_len} " \
+                              f"--fastq_qmax 100 --fastq_minlen {min_len} --fastqout {new_name}"
+                try_except_exit_on_fail(vsearch_cmd)
+
+            else:
+                file = pathlib.Path(search[0])
+                barcode_number = file.parent.parts[-1]
+                new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
+                vsearch_cmd = f"vsearch --fastq_filter {file} -fastq_maxlen {max_len} --fastq_minlen {min_len} " \
+                              f"--fastq_qmax 100 --fastqout {new_name}"
+                try_except_exit_on_fail(vsearch_cmd)
+
+            os.rmdir(str(folder))
+
+        if not rerun_step_only and not msa_cons_only:
+            run_step = 3
+        elif not rerun_step_only and msa_cons_only:
+            run_step = 4
+        elif rerun_step_only:
+            sys.exit("filer demiltiplexed files and rename them completed, exiting")
+        else:
+            sys.exit("filtering and renaming demultiplexed files failed")
+
+    if run_step == 3 and not msa_cons_only:
         # index concatenated fastq with nanopolish
         print(f"\nrunning: nanopolish index on fast5/fastq files")
         with open(log_file, "a") as handle:
@@ -140,13 +146,13 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     f"{master_reads_file} "
         try_except_exit_on_fail(nanopolish_index_cmd)
         if not rerun_step_only:
-            run_step = 3
+            run_step = 4
         else:
             sys.exit("Run step only completed, exiting")
     else:
-        run_step = 3
+        run_step = 4
 
-    if run_step == 3:
+    if run_step == 4:
         # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
         print("collecting demultiplexed files into sample.fastq files based on specified sample barcode combinations\n")
         with open(log_file, "a") as handle:
@@ -181,11 +187,11 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 continue
 
         if not rerun_step_only:
-            run_step = 4
+            run_step = 5
         else:
             sys.exit("Run step only completed, exiting")
 
-    if run_step == 4:
+    if run_step == 5:
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
@@ -255,9 +261,10 @@ if __name__ == "__main__":
                         help="Run the pipeline starting at this step:\n"
                              "--run_step 0 = basecall reads with Guppy\n"
                              "--run_step 1 = demultiplex with Guppy\n"
-                             "--run_step 2 = index master fastq file\n"
-                             "--run_step 3 = concatenate demultiplexed files into sample files\n"
-                             "--run_step 4 = run read mapping and all the variant calling steps on each sample\n")
+                             "--run_step 2 = size filer and rename demultiplexed fastq file\n"
+                             "--run_step 3 = index master fastq file\n"
+                             "--run_step 4 = concatenate demultiplexed files into sample files\n"
+                             "--run_step 5 = run read mapping and all the variant calling steps on each sample\n")
 
     parser.add_argument("--run_step_only", default=False, action="store_true",
                         help="Only run the step specified in 'run_step'", required=False)
