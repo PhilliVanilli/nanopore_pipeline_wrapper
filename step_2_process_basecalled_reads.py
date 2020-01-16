@@ -116,7 +116,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 cat_cmd += f" > {concat_outfile}"
                 try_except_exit_on_fail(cat_cmd)
                 new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
-                bash_cmd = f"cat {concat_outfile} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/\t/\n/g' > {str(new_name)}"
+                sed_syntax = r"\t/\n"
+                bash_cmd = f"cat {concat_outfile} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/{sed_syntax}/g' > {str(new_name)}"
                 print(bash_cmd)
                 seqmagick_cmd = f"seqmagick quality-filter --min-mean-quality 0 " \
                                 f"--min-length {min_len} --max-length {max_len} " \
@@ -129,7 +130,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 file = pathlib.Path(search[0])
                 barcode_number = file.parent.parts[-1]
                 new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
-                bash_cmd = f"cat {file} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/\t/\n/g' > {str(new_name)}"
+                sed_syntax = r"\t/\n"
+                bash_cmd = f"cat {file} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/{sed_syntax}/g' > {str(new_name)}"
                 print(bash_cmd)
                 seqmagick_cmd = f"seqmagick quality-filter --min-mean-quality 0 " \
                                 f"--min-length {min_len} --max-length {max_len} " \
