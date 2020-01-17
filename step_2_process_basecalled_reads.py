@@ -121,7 +121,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
                 if not filtered_file:
                     print(f"no sequences in file after length filtering for {concat_outfile}\n")
-                # bash_cmd = f"cat {concat_outfile} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/\t/\n/g' > {str(new_name)}"
+
+                # sed_syntax = r"\t/\n"
+                # bash_cmd = f"cat {concat_outfile} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/{sed_syntax}/g' > {str(new_name)}"
                 # print(bash_cmd)
                 # seqmagick_cmd = f"seqmagick quality-filter --min-mean-quality 0 " \
                 #                 f"--min-length {min_len} --max-length {max_len} " \
@@ -140,7 +142,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 if not filtered_file:
                     print(f"no sequences in file after length filtering for {file}\n")
 
-                # bash_cmd = f"cat {file} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/\t/\n/g' > {str(new_name)}"
+                # sed_syntax = r"\t/\n"
+                # bash_cmd = f"cat {file} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/{sed_syntax}/g' > {str(new_name)}"
                 # print(bash_cmd)
                 # seqmagick_cmd = f"seqmagick quality-filter --min-mean-quality 0 " \
                 #                 f"--min-length {min_len} --max-length {max_len} " \
@@ -148,8 +151,6 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 # vsearch_cmd = f"vsearch --fastq_filter {file} -fastq_maxlen {max_len} --fastq_minlen {min_len} " \
                 #               f"--fastq_qmax 100 --fastqout {new_name}"
                 # try_except_exit_on_fail(bash_cmd)
-
-            # os.rmdir(str(folder))
 
         if not rerun_step_only and not msa_cons_only:
             run_step = 3
