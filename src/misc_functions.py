@@ -85,6 +85,33 @@ def gather_fastqs(fastq_path, run_name, max_len, min_len):
         return False
 
 
+def filter_length(fastq, outfile, max_len, min_len):
+    """
+    filter fastq by length
+    :param fastq: (str) the path and name of the fastq file
+    :param outfile: (str) the path and name of the output fastq file
+    :param max_len: (int) max sequence length
+    :param min_len: (int) min sequence length
+    :return: (bool) True if outfile is not empty else False
+    """
+
+    not_empty = False
+    with open(outfile, 'w') as handle:
+        try:
+            for record in SeqIO.parse(open(fastq), "fastq"):
+                seq_len = len(record.seq)
+                if seq_len > max_len or seq_len < min_len:
+                    continue
+                else:
+                    not_empty = True
+                    SeqIO.write([record], handle, "fastq")
+        except ValueError as e:
+            print("Failed on fastq file:", fastq, "\n", e, "\n", "Continuing with next fastq file")
+            return None
+
+    return not_empty
+
+
 def d_freq_lists_pos(dna_list, n, positional_depth):
     """
     calculate base frequencies from list of sequences (aligned) using positional depth
