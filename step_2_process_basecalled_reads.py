@@ -122,11 +122,10 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
                 filtered_file = filter_length(concat_outfile, new_name, max_len, min_len)
 
-                os.unlink(str(concat_outfile))
-
                 if not filtered_file:
                     print(f"no sequences in file after length filtering for {concat_outfile}\n")
-
+                else:
+                    os.unlink(str(concat_outfile))
                 # sed_syntax = r"\t/\n"
                 # bash_cmd = f"cat {concat_outfile} | paste - - - - | awk 'length($2)  >= {min_len} && length($2) <= {max_len}' | sed 's/{sed_syntax}/g' > {str(new_name)}"
                 # print(bash_cmd)
