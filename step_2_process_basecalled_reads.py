@@ -14,6 +14,7 @@ from demultiplex_guppy import main as guppy_demultiplex
 from analyse_sample import main as sample_analysis
 from all_samples_summary import main as sample_summary
 
+
 __author__ = 'Colin Anthony'
 
 
@@ -118,6 +119,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 try_except_exit_on_fail(cat_cmd)
                 new_name = pathlib.Path(demultiplexed_folder, f"{run_name}_{barcode_number}.fastq")
                 filtered_file = filter_length(concat_outfile, new_name, max_len, min_len)
+
+                for file in search:
+                    os.unlink(str(file))
 
                 if not filtered_file:
                     print(f"no sequences in file after length filtering for {concat_outfile}\n")
