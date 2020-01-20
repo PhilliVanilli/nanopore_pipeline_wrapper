@@ -85,9 +85,11 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         print(f"\nrunning: demultiplexing")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: demultiplexing")
-        if not list(fastq_dir.glob("*.fastq")):
+        if not list(fastq_dir.glob("*.fastq*")):
             fastq_dir = pathlib.Path(fastq_dir, "pass")
-        
+            if not list(fastq_dir.glob("*.fastq*")):
+                print(f"No fastq files found in {str(fastq_dir)} or {str(fastq_dir.parent)}")
+                sys.exit("fastq files not found")
         run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_buffers, gpu_cores)
         if run and not rerun_step_only:
             run_step = 2
