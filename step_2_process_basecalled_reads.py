@@ -181,8 +181,6 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             run_step = 4
         else:
             sys.exit("Run step only completed, exiting")
-    else:
-        run_step = 4
 
     if run_step == 4:
         # concatenated demultiplexed files for each sample and setup sample names and barcode combinations
