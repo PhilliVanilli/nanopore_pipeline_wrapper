@@ -4,6 +4,7 @@ import argparse
 import pathlib
 import datetime
 import pandas as pd
+import shutil
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
@@ -73,6 +74,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
 
     if run_step == 0:
         run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode)
+        faildir = pathlib.Path(fastq_dir, "fail")
+        shutil.rmtree(faildir)
         if run and not rerun_step_only:
             run_step = 1
         elif run and rerun_step_only:
@@ -161,7 +164,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         elif not rerun_step_only and msa_cons_only:
             run_step = 4
         elif rerun_step_only:
-            sys.exit("filer demiltiplexed files and rename them completed, exiting")
+            sys.exit("filer demultiplexed files and rename them completed, exiting")
         else:
             sys.exit("filtering and renaming demultiplexed files failed")
 
@@ -215,7 +218,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 with open(log_file, "a") as handle:
                     handle.write("\nmissing one or more demultiplexed files for this sample\n")
                 continue
-
+        for fastq in demultiplexed_folder.glob('*.fastq'):
+            os.remove(fastq)
         if not rerun_step_only:
             run_step = 5
         else:
@@ -241,6 +245,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         # initialize the file, and add reference to all consensus file
         with open(all_samples_consens_seqs, 'w') as fh:
             fh.write(f">{ref_name}\n{ref_seq}\n")
+        p = pathlib.Path(project_path, project_name + '_mapping.csv')
+        with open(p, 'w') as fh:
+            fh.close()
 
         for sample_fastq in all_sample_files:
             if not sample_fastq.is_file():
@@ -261,6 +268,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
     with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
 
+    targzpath = pathlib.Path(project_path.parent, run_name + ".tar.gz")
+    tarcmd = f"tar cf - {fast5_dir} | pigz -7 -p 16  > {targzpath}"
+    try_except_exit_on_fail(tarcmd)
+    print(tarcmd)
+    with open(log_file, "a") as handle:
+        handle.write(f"\n{tarcmd}\n\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process raw nanopore reads to fasta consensus sequences",
