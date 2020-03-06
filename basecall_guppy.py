@@ -1,7 +1,7 @@
 import argparse
 import pathlib
 from src.misc_functions import try_except_continue_on_fail
-
+import os, time
 
 __author__ = 'Colin Anthony'
 
@@ -24,19 +24,31 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode):
     else:
         gpu_settings = f"--gpu_runners_per_device {gpu_threads}  --num_callers 4 -x 'auto' " #--device {cuda_device}
 
-    # add arg to keep fastq size to 4000 seqs in case something fails, easier to find where it went wrong and fix
-    guppy_basecall_cmd = f"{str(guppy_basecaller)} -i {inpath} -r -s {outpath} -c {config} " \
-                         f"--compress_fastq --records_per_fastq 4000 --qscore_filtering 7 " \
-                         f"{gpu_settings}"
+    before = dict([(f, None) for f in os.listdir(inpath)])
+    for f in before:
+        guppy_basecall_cmd = f"{str(guppy_basecaller)} -i {inpath}/{f} -r -s {outpath} -c {config} " \
+                             f"--compress_fastq --records_per_fashhhhhhhhtq 4000 --qscore_filtering 7 " \
+                             f"{gpu_settings}"
+        try_except_continue_on_fail(guppy_basecall_cmd)
 
-    run = try_except_continue_on_fail(guppy_basecall_cmd)
+    while 1:
+        time.sleep(10)
+        after = dict([(f, None) for f in os.listdir(inpath)])
+        added = [f for f in after if not f in before]
+        if added:
+            print(f"Added {added}")
+            for f in added:
+                guppy_basecall_cmd = f"{str(guppy_basecaller)} -i {inpath}/{f} -r -s {outpath} -c {config} " \
+                                     f"--compress_fastq --records_per_fashhhhhhhhtq 4000 --qscore_filtering 7 " \
+                                     f"{gpu_settings}"
+                try_except_continue_on_fail(guppy_basecall_cmd)
 
-    if run:
-        print("basecalling completed\n")
-    else:
-        print("basecalling failed")
-
-    return run
+            before = after
+            continue
+        else:
+            print("basecalling completed")
+            break
+    return
 
 
 if __name__ == "__main__":
