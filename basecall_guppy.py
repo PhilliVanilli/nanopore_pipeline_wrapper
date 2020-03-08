@@ -15,7 +15,8 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time):
     # force absolute file paths
     inpath = pathlib.Path(inpath).absolute()
     outpath = pathlib.Path(outpath).absolute()
-    shutil.rmtree(outpath)
+    if pathlib.Path.exists(outpath):
+        shutil.rmtree(outpath)
     guppy_path = pathlib.Path(guppy_path).absolute()
     guppy_basecaller = pathlib.Path(guppy_path, "guppy_basecaller")
     cuda_device = "CUDA:0"
