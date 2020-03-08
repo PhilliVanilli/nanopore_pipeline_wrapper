@@ -25,7 +25,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
          rerun_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
-         guppy_path):
+         guppy_path, real_time):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -73,7 +73,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     if run_step == 0:
-        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode)
+        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode, real_time)
         faildir = pathlib.Path(fastq_dir, "fail")
         shutil.rmtree(faildir)
         if run and not rerun_step_only:
@@ -325,9 +325,11 @@ if __name__ == "__main__":
     parser.add_argument("--use_gaps", default=False, action="store_true",
                         help="use gap characters when making the consensus sequences", required=False)
     parser.add_argument("--use_minmap2", default=False, action="store_true",
-                        help="use bwa instead of minimap2 to map reads to reference", required=False)
+                        help="use minimap2 instead of bwa to map reads to reference", required=False)
     parser.add_argument("-p", "--guppy_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the guppy executables eg: '.../ont-guppy/bin/'", required=True)
+    parser.add_argument("-rt", "--real_time", default=False, action="store_true",
+                        help="start basecalling fast5 files in batches during sequencing", required=False)
 
     args = parser.parse_args()
 
@@ -349,7 +351,8 @@ if __name__ == "__main__":
     use_gaps = args.use_gaps
     use_minmap2 = args.use_minmap2
     guppy_path = args.guppy_path
+    real_time = args.real_time
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
          run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
-         guppy_path)
+         guppy_path, real_time)
