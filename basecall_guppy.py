@@ -11,7 +11,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
     pass
 
 
-def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time):
+def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, reference, script_folder):
     # force absolute file paths
     inpath = pathlib.Path(inpath).absolute()
     outpath = pathlib.Path(outpath).absolute()
@@ -34,18 +34,24 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time):
         temp_folder = pathlib.Path(projectpath, "temp")
         temp_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
         resume = ""
+        passfolder = pathlib.Path(projectpath, "fastq/pass")
+        passfolder.mkdir(mode=0o777, parents=True, exist_ok=True)
+        rampart_protocol_path = pathlib.Path(script_folder, f"rampart/protocols/{reference}")
+        print(rampart_protocol_path)
+        rampart_cmd = f"rampart --protocol {rampart_protocol_path} --clearAnnotated"
+        try_except_continue_on_fail(f"gnome-terminal -- {rampart_cmd} &")
+        try_except_continue_on_fail(f"gnome-terminal -- google-chrome http://localhost:3000/")
+
         w = 0
         while w == 0:
 
             fast5files = sorted(os.listdir(inpath), key=lambda y: os.path.getmtime(os.path.join(inpath, y)))
-            print(fast5files)
             firstlength = len(fast5files)
             if firstlength > 10:
                 x = 10
             else:
                 time.sleep(10)
                 fast5files = sorted(os.listdir(inpath), key=lambda y: os.path.getmtime(os.path.join(inpath, y)))
-                print(fast5files)
                 secondlength = len(fast5files)
                 if firstlength < secondlength:
                     x = len(fast5files)
@@ -58,7 +64,7 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time):
                 shutil.move(file, basecalling_folder)
 
             guppy_basecall_cmd = f"{str(guppy_basecaller)} -i {basecalling_folder} -r -s {outpath} -c {config} " \
-                                 f"--compress_fastq --records_per_fastq 4000 --qscore_filtering 7 {resume}" \
+                                 f"--records_per_fastq 4000 --qscore_filtering 7 {resume}" \
                                  f"{gpu_settings}"
 
             run = try_except_continue_on_fail(guppy_basecall_cmd)
@@ -71,6 +77,7 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time):
                 file = os.path.join(basecalling_folder, filename)
                 shutil.move(file, temp_folder)
             resume = '--resume '
+
         os.rmdir(inpath)
         os.rename(temp_folder, inpath)
         os.rmdir(basecalling_folder)
@@ -99,6 +106,8 @@ if __name__ == "__main__":
                         help='The path to the fast5 folder')
     parser.add_argument('-p', '--guppy_path', type=str, default=None, required=True,
                         help='The path to guppy exexutable')
+    parser.add_argument('-sf', '--script_folder', type=str, default=None, required=True,
+                        help='The path to script_folder')
     parser.add_argument('-o', '--outpath', type=str, default=None, required=True,
                         help='The path for the outfile')
     parser.add_argument("-g", "--gpu_threads", type=int, default=4,
@@ -108,6 +117,9 @@ if __name__ == "__main__":
                              '1 = high accuracy mode')
     parser.add_argument("-rt", "--real_time", default=False, action="store_true",
                         help="start basecalling fast5 files in batches during sequencing", required=False)
+    parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
+                        help="The reference genome and primer scheme to use",
+                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400"], required=False)
 
     args = parser.parse_args()
     inpath = args.inpath
@@ -116,5 +128,7 @@ if __name__ == "__main__":
     gpu_threads = args.gpu_threads
     bascall_mode = args.bascall_mode
     real_time = args.real_time
+    reference = args.reference
+    script_folder = args.scriptfolder
 
-    main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time)
+    main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, reference, script_folder)

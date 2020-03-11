@@ -45,6 +45,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
     master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
     time_stamp = str('{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now()))
     log_file = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file.txt")
+
     with open(log_file, "w") as handle:
         handle.write(f"# start of pipeline run for project: {run_name}\n")
 
@@ -73,7 +74,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     if run_step == 0:
-        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode, real_time)
+        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode, real_time, reference, script_folder)
         faildir = pathlib.Path(fastq_dir, "fail")
         shutil.rmtree(faildir)
         if run and not rerun_step_only:
@@ -82,6 +83,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
             sys.exit("Run step only completed, exiting")
         else:
             sys.exit("Basecalling failed")
+
 
     if run_step == 1:
         # demultiplex
