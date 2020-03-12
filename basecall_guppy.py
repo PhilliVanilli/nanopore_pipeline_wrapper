@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 from src.misc_functions import try_except_continue_on_fail
+from src.json_converter import json_converter
 import os, time
 import shutil
 
@@ -27,8 +28,8 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, refe
     else:
         gpu_settings = f"--gpu_runners_per_device {gpu_threads}  --num_callers 4 -x 'auto' "  # --device {cuda_device}
     if real_time:
-
         projectpath = inpath.parent
+        json_converter(projectpath)
         basecalling_folder = pathlib.Path(projectpath, "basecalling")
         basecalling_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
         temp_folder = pathlib.Path(projectpath, "temp")
@@ -41,10 +42,10 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, refe
         rampart_cmd = f"rampart --protocol {rampart_protocol_path} --clearAnnotated"
         try_except_continue_on_fail(f"gnome-terminal -- {rampart_cmd} &")
         try_except_continue_on_fail(f"gnome-terminal -- google-chrome http://localhost:3000/")
-
+        counter = 0
         w = 0
         while w == 0:
-
+            counter += 1
             fast5files = sorted(os.listdir(inpath), key=lambda y: os.path.getmtime(os.path.join(inpath, y)))
             firstlength = len(fast5files)
             if firstlength > 10:
@@ -69,9 +70,9 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, refe
 
             run = try_except_continue_on_fail(guppy_basecall_cmd)
             if run:
-                print("basecalling batch of 50 files")
+                print(f"Basecalled batch {counter} of 10 files")
             else:
-                print("basecalling failed")
+                print("Basecalling failed")
 
             for filename in os.listdir(basecalling_folder):
                 file = os.path.join(basecalling_folder, filename)
@@ -92,9 +93,9 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, refe
         run = try_except_continue_on_fail(guppy_basecall_cmd)
 
         if run:
-            print("basecalling completed\n")
+            print("Basecalling completed\n")
         else:
-            print("basecalling failed")
+            print("Basecalling failed")
 
         return run
 

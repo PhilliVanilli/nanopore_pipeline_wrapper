@@ -7,7 +7,6 @@ from itertools import groupby
 from Bio import SeqIO
 import matplotlib.pyplot as plt
 
-
 __author__ = 'Colin Anthony'
 
 
@@ -26,7 +25,6 @@ def try_except_continue_on_fail(cmd):
     except subprocess.CalledProcessError as e:
         print(e)
         return False
-
 
 def py3_fasta_iter(fasta_name):
     """
