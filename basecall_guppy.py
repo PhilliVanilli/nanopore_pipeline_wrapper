@@ -39,19 +39,19 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, refe
         passfolder.mkdir(mode=0o777, parents=True, exist_ok=True)
         rampart_protocol_path = pathlib.Path(script_folder, f"rampart/protocols/{reference}")
         print(rampart_protocol_path)
-        rampart_cmd = f"rampart --protocol {rampart_protocol_path} --clearAnnotated"
-        try_except_continue_on_fail(f"gnome-terminal -- {rampart_cmd} &")
+        rampart_cmd = f"rampart --protocol {rampart_protocol_path}"
+        try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'export NODE_OPTIONS=--max-old-space-size=16384; {rampart_cmd}; exec bash'")
         try_except_continue_on_fail(f"gnome-terminal -- google-chrome http://localhost:3000/")
         counter = 0
         w = 0
         while w == 0:
-            counter += 1
             fast5files = sorted(os.listdir(inpath), key=lambda y: os.path.getmtime(os.path.join(inpath, y)))
             firstlength = len(fast5files)
             if firstlength > 10:
                 x = 10
+                counter += x
             else:
-                time.sleep(10)
+                time.sleep(900)
                 fast5files = sorted(os.listdir(inpath), key=lambda y: os.path.getmtime(os.path.join(inpath, y)))
                 secondlength = len(fast5files)
                 if firstlength < secondlength:
@@ -59,10 +59,12 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, refe
                 else:
                     x = len(fast5files)
                     w = 1
+                counter += x
 
             for filename in fast5files[0:x]:
-                file = os.path.join(inpath, filename)
-                shutil.move(file, basecalling_folder)
+                if not filename.startswith('.'):
+                    file = os.path.join(inpath, filename)
+                    shutil.move(file, basecalling_folder)
 
             guppy_basecall_cmd = f"{str(guppy_basecaller)} -i {basecalling_folder} -r -s {outpath} -c {config} " \
                                  f"--records_per_fastq 4000 --qscore_filtering 7 {resume}" \
@@ -70,7 +72,7 @@ def main(inpath, guppy_path, outpath, gpu_threads, bascall_mode, real_time, refe
 
             run = try_except_continue_on_fail(guppy_basecall_cmd)
             if run:
-                print(f"Basecalled batch {counter} of 10 files")
+                print(f"Basecalled {counter} fast5 files")
             else:
                 print("Basecalling failed")
 

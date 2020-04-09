@@ -12,7 +12,7 @@ def json_converter(inputloc):
     csvfile = pathlib.Path(inputloc, 'sample_names.csv')
     outputfile = pathlib.Path(inputloc, 'run_configuration.json')
 
-    output = open(outputfile, 'a')
+    output = open(outputfile, 'w')
     output.write('{\n  "basecalledPath": "fastq/pass",\n  "samples": [\n')
 
     count = -1
