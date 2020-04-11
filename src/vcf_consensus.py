@@ -63,6 +63,7 @@ def main(infile, outpath):
         fh.write(f">{ref_name}\n{ref_seq}\n")
 
     print("done")
+    return depth_qual_outfile
 
 
 if __name__ == "__main__":

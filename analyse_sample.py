@@ -3,7 +3,6 @@ import pathlib
 import os
 import json
 import collections
-import shutil
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import consensus_maker
 from src.misc_functions import fasta_to_dct
@@ -11,7 +10,8 @@ from src.misc_functions import plot_primer_depth
 from src.misc_functions import plot_depth
 from src.misc_functions import py3_fasta_iter
 from src.misc_functions import rename_fasta
-from vcf_consensus import main as vcf_cons
+from src.vcf_consensus import main as vcf_cons
+from src.plot_vcf_qual_depth import main as vcf_plots
 
 
 __author__ = 'Colin Anthony'
@@ -224,7 +224,8 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
     rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
 
     # generate manual vcf consensus and seq depth + qual output
-    vcf_cons(bcftools_vcf_file, sample_folder)
+    depth_qual_outfile = vcf_cons(bcftools_vcf_file, sample_folder)
+    vcf_plots(depth_qual_outfile, plot_folder)
 
     #     # make artic-ebov consensus
     #     print(f"\nrunning: making consensuses sequence from artic_ebov method\n")
