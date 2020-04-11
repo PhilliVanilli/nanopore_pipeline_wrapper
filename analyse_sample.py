@@ -11,6 +11,7 @@ from src.misc_functions import plot_primer_depth
 from src.misc_functions import plot_depth
 from src.misc_functions import py3_fasta_iter
 from src.misc_functions import rename_fasta
+from vcf_consensus import main as vcf_cons
 
 
 __author__ = 'Colin Anthony'
@@ -196,32 +197,35 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
     #     # rename the fasta header to the sample name
     #     rename_fasta(nanopolish_cons_file, sample_name, "nanopolish_cons")
     #
-    #     # make bcftools consensus
-    #     print(f"\nrunning: making consensuses sequence from bcftools\n")
-    #     min_base_qual = 30  # default=13
-    #     p_val_of_variant = 0.2  # default=0.5
-    #     bcf_vcf_cmd = f"bcftools mpileup --threads {threads} --min-BQ {min_base_qual} -Ou " \
-    #                   f"-f {chosen_ref_scheme} {sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} " \
-    #                   f"--ploidy 1 -Ov -o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-    #     bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
-    #     bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
-    #                    f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
-    #     with open(log_file, "a") as handle:
-    #         handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
-    #         handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
-    #     run = try_except_continue_on_fail(bcf_vcf_cmd)
-    #     if not run:
-    #         return False
-    #     run = try_except_continue_on_fail(bcf_index_cmd)
-    #     if not run:
-    #         return False
-    #     run = try_except_continue_on_fail(bcf_cons_cmd)
-    #     if not run:
-    #         return False
-    #
-    #     # rename the fasta header to the sample name
-    #     rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
-    #
+    # make bcftools consensus
+    print(f"\nrunning: making consensuses sequence from bcftools\n")
+    min_base_qual = 30  # default=13
+    p_val_of_variant = 0.2  # default=0.5
+    bcf_vcf_cmd = f"bcftools mpileup --threads {threads} --min-BQ {min_base_qual} -Ou " \
+                  f"-f {chosen_ref_scheme} {sorted_trimmed_bam_file} | bcftools call -c -p {p_val_of_variant} " \
+                  f"--ploidy 1 -Ov -o {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+    bcf_index_cmd = f"bcftools index {bcftools_vcf_file} 2>&1 | tee -a {log_file}"
+    bcf_cons_cmd = f"bcftools consensus -H A -f {chosen_ref_scheme} {bcftools_vcf_file} " \
+                   f"-o {bcftools_cons_file} 2>&1 | tee -a {log_file}"
+    with open(log_file, "a") as handle:
+        handle.write(f"\nrunning: making consensuses sequence from bcftools:\n")
+        handle.write(f"{bcf_vcf_cmd}\n\n{bcf_index_cmd}\n\n{bcf_cons_cmd}\n")
+    run = try_except_continue_on_fail(bcf_vcf_cmd)
+    if not run:
+        return False
+    run = try_except_continue_on_fail(bcf_index_cmd)
+    if not run:
+        return False
+    run = try_except_continue_on_fail(bcf_cons_cmd)
+    if not run:
+        return False
+
+    # rename the fasta header to the sample name
+    rename_fasta(bcftools_cons_file, sample_name, "bcftools_cons")
+
+    # generate manual vcf consensus and seq depth + qual output
+    vcf_cons(bcftools_vcf_file, sample_folder)
+
     #     # make artic-ebov consensus
     #     print(f"\nrunning: making consensuses sequence from artic_ebov method\n")
     #     shutil.copyfile(sorted_trimmed_bam_file, rename_trimmed_bam_file)
