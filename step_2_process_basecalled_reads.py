@@ -222,7 +222,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     handle.write("\nmissing one or more demultiplexed files for this sample\n")
                 continue
         for fastq in demultiplexed_folder.glob('*.fastq'):
-            os.remove(fastq)
+            os.remove(str(fastq))
         if not rerun_step_only:
             run_step = 5
         else:
