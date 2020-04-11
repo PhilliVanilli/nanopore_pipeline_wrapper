@@ -177,6 +177,23 @@ def main(infile, outfile, bedfile):
 
     read_prime_pair_lookup_dict = collections.defaultdict(list)
 
+    # make sure that all primer pairs are represented in the dict
+    for bed_index in range(0, len(bed), 2):
+        if bed[bed_index]["number"] != bed[bed_index + 1]["number"]:
+            print("primers are not a pair")
+            raise ValueError
+
+        if bed[bed_index]["direction"] == "+":
+            primer_start = bed[bed_index]["end"]
+        else:
+            raise ValueError
+        if bed[bed_index + 1]["direction"] == "-":
+            primer_end = bed[bed_index + 1]["start"]
+        else:
+            raise ValueError
+        pair_key = f"{primer_start}_{primer_end}"
+        read_prime_pair_lookup_dict[pair_key] = []
+
     for s in sam_infile:
         total += 1
         cigar = copy(s.cigartuples)
@@ -204,8 +221,10 @@ def main(infile, outfile, bedfile):
             continue
 
         # create dict to write seq name and primer pair code to json
-        read_prime_pair_lookup_dict[f"{p1[2]['end']}_{p2[2]['start']}"].append(s.query_name)
 
+        read_prime_pair_lookup_dict[f"{p1[2]['end']}_{p2[2]['start']}"].append(s.query_name)
+        print(read_prime_pair_lookup_dict)
+        input("enterf")
         # if the alignment starts before the end of the primer, trim to that position
         primer_position = p1[2]['end']
         pass_1 = False
