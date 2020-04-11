@@ -4,6 +4,7 @@ import argparse
 import pathlib
 import datetime
 import pandas as pd
+import shutil
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
@@ -24,7 +25,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
          rerun_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
-         guppy_path):
+         guppy_path, real_time):
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -44,6 +45,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
     master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
     time_stamp = str('{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now()))
     log_file = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file.txt")
+
     with open(log_file, "w") as handle:
         handle.write(f"# start of pipeline run for project: {run_name}\n")
 
@@ -55,6 +57,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         {"ChikECSA_V1_800": pathlib.Path(primer_scheme_dir, "ChikECSA800", "V1", "ChikECSA800.reference.fasta"),
          "ChikAsian_V1_400": pathlib.Path(primer_scheme_dir, "ChikAsian400", "V1", "ChikAsian400.reference.fasta"),
          "ZikaAsian_V1_400": pathlib.Path(primer_scheme_dir, "ZikaAsian400", "V1", "ZikaAsian400.reference.fasta"),
+         "SARS2_V1_800": pathlib.Path(primer_scheme_dir, "SARS2_800", "V1", "SARS2_800.reference.fasta"),
          }
 
     chosen_ref_scheme = str(reference_scheme[reference])
@@ -72,13 +75,16 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     if run_step == 0:
-        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode)
+        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode, real_time, reference, script_folder)
+        faildir = pathlib.Path(fastq_dir, "fail")
+        shutil.rmtree(faildir)
         if run and not rerun_step_only:
             run_step = 1
         elif run and rerun_step_only:
             sys.exit("Run step only completed, exiting")
         else:
             sys.exit("Basecalling failed")
+
 
     if run_step == 1:
         # demultiplex
@@ -161,7 +167,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         elif not rerun_step_only and msa_cons_only:
             run_step = 4
         elif rerun_step_only:
-            sys.exit("filer demiltiplexed files and rename them completed, exiting")
+            sys.exit("filer demultiplexed files and rename them completed, exiting")
         else:
             sys.exit("filtering and renaming demultiplexed files failed")
 
@@ -215,7 +221,8 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 with open(log_file, "a") as handle:
                     handle.write("\nmissing one or more demultiplexed files for this sample\n")
                 continue
-
+        for fastq in demultiplexed_folder.glob('*.fastq'):
+            os.remove(fastq)
         if not rerun_step_only:
             run_step = 5
         else:
@@ -241,6 +248,9 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
         # initialize the file, and add reference to all consensus file
         with open(all_samples_consens_seqs, 'w') as fh:
             fh.write(f">{ref_name}\n{ref_seq}\n")
+        p = pathlib.Path(project_path, project_name + '_mapping.csv')
+        with open(p, 'w') as fh:
+            fh.close()
 
         for sample_fastq in all_sample_files:
             if not sample_fastq.is_file():
@@ -261,6 +271,12 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
     with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
 
+    targzpath = pathlib.Path(project_path.parent, run_name + ".tar.gz")
+    tarcmd = f"tar cf - {fast5_dir} | pigz -7 -p 16  > {targzpath}"
+    try_except_exit_on_fail(tarcmd)
+    print(tarcmd)
+    with open(log_file, "a") as handle:
+        handle.write(f"\n{tarcmd}\n\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process raw nanopore reads to fasta consensus sequences",
@@ -273,7 +289,7 @@ if __name__ == "__main__":
                              "This file should have three columns: barcode_1,barcode_2,sample_name", required=True)
     parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
                         help="The reference genome and primer scheme to use",
-                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400"], required=False)
+                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800"], required=False)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
                         help="The start coordinate of the reference sequence for read mapping", required=False)
     parser.add_argument("-re", "--reference_end", default=False, type=int,
@@ -312,9 +328,11 @@ if __name__ == "__main__":
     parser.add_argument("--use_gaps", default=False, action="store_true",
                         help="use gap characters when making the consensus sequences", required=False)
     parser.add_argument("--use_minmap2", default=False, action="store_true",
-                        help="use bwa instead of minimap2 to map reads to reference", required=False)
+                        help="use minimap2 instead of bwa to map reads to reference", required=False)
     parser.add_argument("-p", "--guppy_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the guppy executables eg: '.../ont-guppy/bin/'", required=True)
+    parser.add_argument("-rt", "--real_time", default=False, action="store_true",
+                        help="start basecalling fast5 files in batches during sequencing", required=False)
 
     args = parser.parse_args()
 
@@ -336,7 +354,8 @@ if __name__ == "__main__":
     use_gaps = args.use_gaps
     use_minmap2 = args.use_minmap2
     guppy_path = args.guppy_path
+    real_time = args.real_time
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
          run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
-         guppy_path)
+         guppy_path, real_time)
