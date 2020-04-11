@@ -9,6 +9,7 @@ dependencies:
   - nanopolish
   - minimap2
   - vcfpy
+  - pyvcf
   - h5py
   - tqdm
   - plotly  
