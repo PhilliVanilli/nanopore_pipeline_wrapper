@@ -8,7 +8,7 @@ dependencies:
   - biopython
   - nanopolish
   - minimap2
-  - pyvcf
+  - vcfpy
   - h5py
   - tqdm
   - plotly  
