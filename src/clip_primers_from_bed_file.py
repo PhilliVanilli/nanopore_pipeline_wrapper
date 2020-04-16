@@ -223,8 +223,6 @@ def main(infile, outfile, bedfile):
         # create dict to write seq name and primer pair code to json
 
         read_prime_pair_lookup_dict[f"{p1[2]['end']}_{p2[2]['start']}"].append(s.query_name)
-        print(read_prime_pair_lookup_dict)
-        input("enterf")
         # if the alignment starts before the end of the primer, trim to that position
         primer_position = p1[2]['end']
         pass_1 = False
