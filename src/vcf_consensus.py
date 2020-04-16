@@ -1,6 +1,10 @@
 import argparse
 import pathlib
 import vcfpy
+import vcf
+import subprocess
+import os
+from collections import OrderedDict
 
 
 __author__ = 'Colin Anthony'
@@ -19,50 +23,71 @@ def main(infile, outpath):
     headers = "position,seq_depth,quality_score\n"
     sample_name = infile.stem.replace("_bcftools", "")
 
-    ref_seq = ""
-    cons_seq = ""
+    cmd = f"bcftools view -Ov -o {infile}.decomplressed.vcf {infile}"
+    subprocess.call(cmd, shell=True)
+    ref_seq = OrderedDict()
+    cons_seq = OrderedDict()
     first = True
     csv_string = ""
     ref_name = ""
-    for record in vcfpy.Reader.from_path(infile):
-
-        if not record.is_snv():
-            continue
+    real_del_list = []
+    for record in vcfpy.Reader.from_path(str(infile) + ".decomplressed.vcf"):
         pos = record.POS
-
         if first:
             ref_name = record.CHROM
-            cons_seq += "N" * (pos - 1)
-            ref_seq += "N" * (pos - 1)
+            cons_seq["0"] = "N" * (pos - 1)
+            ref_seq["0"] = "N" * (pos - 1)
             first = False
 
         ref_base = record.REF
-        ref_seq += ref_base
+        ref_seq[pos] = ref_base
         alt_subs = record.ALT
         qual =record.QUAL
         inf = record.INFO
         depth = inf["DP"]
 
+        if not record.is_snv():
+            indel_freq = record.INFO["IMF"]
+            if indel_freq > 0.6:
+                indel = True
+                del_len = len(ref_base)
+                start_del = pos
+                real_del_list.extend(list(range(pos, pos + del_len, 1)))
+                # todo: handle real indels
+                continue
+            else:
+                continue
+
         csv_string += f"{pos},{depth},{qual}\n"
 
-        if len(alt_subs) >= 1:
+        if len(alt_subs) >= 1 and depth > 50 and qual > 50:
             alt_base = record.ALT[0].value
         else:
             alt_base = ref_base
+        cons_seq[pos] = alt_base
+        # cons_seq += alt_base
+    consensus = ""
+    reference = ""
 
-        cons_seq += alt_base
-
+    for position, base in cons_seq.items():
+        if position in real_del_list:
+            continue
+        consensus += base.upper()
+    for position, base in ref_seq.items():
+        reference += base.upper()
     with cons_outfile.open("w") as fh:
-        fh.write(f">{sample_name}\n{cons_seq}\n")
+        fh.write(f">{sample_name}\n{consensus}\n")
 
     with depth_qual_outfile.open('w') as fh:
         fh.write(headers)
         fh.write(csv_string)
 
     with open("ref.fasta", "w") as fh:
-        fh.write(f">{ref_name}\n{ref_seq}\n")
+        fh.write(f">{ref_name}\n{reference}\n")
 
     print("done")
+    os.unlink(str(infile) + ".decomplressed.vcf")
+
     return depth_qual_outfile
 
 
