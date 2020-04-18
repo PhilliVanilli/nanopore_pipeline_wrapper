@@ -14,7 +14,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
     pass
 
 
-def main(infile, outpath):
+def main(infile, min_depth, outpath):
     # force absolute file paths
     infile = pathlib.Path(infile).absolute()
     outpath = pathlib.Path(outpath).absolute()
@@ -48,19 +48,14 @@ def main(infile, outpath):
 
         if not record.is_snv():
             indel_freq = record.INFO["IMF"]
-            if indel_freq > 0.6:
-                indel = True
+            if indel_freq >= 0.6:
                 del_len = len(ref_base)
-                start_del = pos
                 real_del_list.extend(list(range(pos, pos + del_len, 1)))
-                # todo: handle real indels
-                continue
-            else:
-                continue
+            continue
 
         csv_string += f"{pos},{depth},{qual}\n"
 
-        if len(alt_subs) >= 1 and depth > 50 and qual > 50:
+        if len(alt_subs) >= 1 and depth >= min_depth and qual >= 30:
             alt_base = record.ALT[0].value
         else:
             alt_base = ref_base
@@ -75,18 +70,18 @@ def main(infile, outpath):
         consensus += base.upper()
     for position, base in ref_seq.items():
         reference += base.upper()
-    with cons_outfile.open("w") as fh:
-        fh.write(f">{sample_name}\n{consensus}\n")
+    # with cons_outfile.open("w") as fh:
+    #     fh.write(f">{sample_name}\n{consensus}\n")
 
     with depth_qual_outfile.open('w') as fh:
         fh.write(headers)
         fh.write(csv_string)
 
-    with open("ref.fasta", "w") as fh:
-        fh.write(f">{ref_name}\n{reference}\n")
+    # with open("ref.fasta", "w") as fh:
+    #     fh.write(f">{ref_name}\n{reference}\n")
 
     print("done")
-    os.unlink(str(infile) + ".decomplressed.vcf")
+    # os.unlink(str(infile) + ".decomplressed.vcf")
 
     return depth_qual_outfile
 
@@ -97,11 +92,14 @@ if __name__ == "__main__":
 
     parser.add_argument('-in', '--infile', type=str, default=None, required=True,
                         help='The path and name of the infile')
+    parser.add_argument('-min', '--mind_depth', type=str, default=100, required=False,
+                        help='The path and name of the infile')
     parser.add_argument('-o', '--outpath', type=str, default=None, required=True,
                         help='The path for the outfile')
 
     args = parser.parse_args()
     infile = args.infile
+    mind_depth = args.mind_depth
     outpath = args.outpath
 
-    main(infile, outpath)
+    main(infile, mind_depth, outpath)

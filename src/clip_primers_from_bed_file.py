@@ -154,7 +154,7 @@ def is_correctly_paired(p1, p2):
 def main(infile, outfile, bedfile):
 
     bed = read_bed_file(bedfile)
-    sam_infile = pysam.AlignmentFile(infile, "rb")
+    sam_infile = pysam.AlignmentFile(infile, "r")
     outfile = pathlib.Path(outfile).absolute()
     outfile_trimmed = pysam.AlignmentFile(str(outfile), "wh", template=sam_infile)
     suppl_out = str(outfile) + "_excluded_sequences_as_Supplementary.sam"

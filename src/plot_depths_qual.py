@@ -19,6 +19,8 @@ def collect_depths(bamfile):
     p = subprocess.Popen(['samtools', 'depth', bamfile], stdout=subprocess.PIPE)
     out, err = p.communicate()
     depths = defaultdict(dict)
+    # print(out[0])
+    # input("dfdf")
     for ln in out.decode('utf-8').split("\n"):
         if ln:
             contig, pos, depth = ln.split("\t")
