@@ -37,8 +37,6 @@ def plot_qual(x_vals, qual_vals, sample_name, outfile):
     ax.set_ylabel('Sequencing quality')
     ax.set_xlabel('Sequence position')
     ax.set_title(sample_name + " Quality scores")
-
-    last_used_index = 0
     ax.tick_params(axis='x', rotation=90)
 
     plt.plot(x_vals, qual_vals)
@@ -60,8 +58,30 @@ def main(infile, outpath):
     qual_outfile = pathlib.Path(outpath, sample_name + "_vcf_qual_plot.png")
     data = pd.read_csv(infile, sep=',', header=0, parse_dates=True)
 
-    # plot_depth(data['position'], data['seq_depth'], sample_name, depth_outfile)
-    plot_qual(data['position'], data['quality_score'], sample_name, qual_outfile)
+    # fill in missing positions
+    observed_positions = list(data['position'])
+    observed_depth = list(data['seq_depth'])
+    observed_quality = list(data['quality_score'])
+
+    final_pos = []
+    final_qual = []
+    final_depth = []
+
+    for i, pos in enumerate(observed_positions):
+        final_pos.append(pos)
+        final_qual.append(observed_quality[i])
+        final_depth.append(observed_depth[i])
+        if i < len(observed_positions) - 1:
+            next_observed_pos = observed_positions[i + 1]
+            if pos + 1 < next_observed_pos:
+                positions_to_add = list(range(pos + 1, next_observed_pos, 1))
+                for missing_pos in positions_to_add:
+                    final_pos.append(missing_pos)
+                    final_qual.append(0)
+                    final_depth.append(0)
+
+    # plot_depth(final_pos, final_depth, sample_name, depth_outfile)
+    plot_qual(final_pos, final_qual, sample_name, qual_outfile)
 
     print("done")
 
