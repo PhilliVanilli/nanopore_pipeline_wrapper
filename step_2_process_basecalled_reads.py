@@ -58,6 +58,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
          "ChikAsian_V1_400": pathlib.Path(primer_scheme_dir, "ChikAsian400", "V1", "ChikAsian400.reference.fasta"),
          "ZikaAsian_V1_400": pathlib.Path(primer_scheme_dir, "ZikaAsian400", "V1", "ZikaAsian400.reference.fasta"),
          "SARS2_V1_800": pathlib.Path(primer_scheme_dir, "SARS2_800", "V1", "SARS2_800.reference.fasta"),
+         "SARS2_V1_400": pathlib.Path(primer_scheme_dir, "SARS2_400", "V1", "SARS2_400.reference.fasta"),
          }
 
     chosen_ref_scheme = str(reference_scheme[reference])
@@ -289,7 +290,7 @@ if __name__ == "__main__":
                              "This file should have three columns: barcode_1,barcode_2,sample_name", required=True)
     parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
                         help="The reference genome and primer scheme to use",
-                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800"], required=False)
+                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800", "SARS2_V1_400"], required=False)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
                         help="The start coordinate of the reference sequence for read mapping", required=False)
     parser.add_argument("-re", "--reference_end", default=False, type=int,
