@@ -24,7 +24,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 
 def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         rerun_step_only, basecall_mode, msa_cons, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
          guppy_path, real_time):
 
     # set the primer_scheme directory
@@ -163,16 +163,16 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                 #               f"--fastq_qmax 100 --fastqout {new_name}"
                 # try_except_exit_on_fail(bash_cmd)
 
-        if not rerun_step_only and not msa_cons_only:
+        if not rerun_step_only and not msa_cons:
             run_step = 3
-        elif not rerun_step_only and msa_cons_only:
+        elif not rerun_step_only and msa_cons:
             run_step = 4
         elif rerun_step_only:
             sys.exit("filer demultiplexed files and rename them completed, exiting")
         else:
             sys.exit("filtering and renaming demultiplexed files failed")
 
-    if run_step == 3 and not msa_cons_only:
+    if run_step == 3 and not msa_cons:
         # index concatenated fastq with nanopolish
         print(f"\nrunning: nanopolish index on fast5/fastq files")
         with open(log_file, "a") as handle:
@@ -260,7 +260,7 @@ def main(project_path, sample_names, reference, ref_start, ref_end, min_len, max
                     handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
                 continue
             run = sample_analysis(sample_fastq, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
-                                  chosen_ref_scheme_bed_file, threads, msa_cons_only, min_depth, use_gaps,
+                                  chosen_ref_scheme_bed_file, threads, msa_cons, min_depth, use_gaps,
                                   all_samples_consens_seqs)
             if not run:
                 continue
@@ -318,8 +318,8 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--basecall_mode", default=0, choices=[0, 1], type=int,
                         help="0 = basecall in fast mode\n"
                              "1 = basecall in high accuracy mode\n", required=False)
-    parser.add_argument("-m", "--msa_cons_only", default=False, action="store_true",
-                        help="Only do MSA to consensus sequence for variant calling", required=False)
+    parser.add_argument("-m", "--msa", default=False, action="store_true",
+                        help="Generate consensus from MSA", required=False)
     parser.add_argument("-t", "--threads", type=int, default=8,
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=4,
@@ -348,7 +348,7 @@ if __name__ == "__main__":
     run_step = args.run_step
     run_step_only = args.run_step_only
     basecall_mode = args.basecall_mode
-    msa_cons_only = args.msa_cons_only
+    msa_cons = args.msa
     threads = args.threads
     gpu_cores = args.gpu_cores
     gpu_buffers = args.gpu_buffers
@@ -358,5 +358,5 @@ if __name__ == "__main__":
     real_time = args.real_time
 
     main(project_path, sample_names, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         run_step_only, basecall_mode, msa_cons_only, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         run_step_only, basecall_mode, msa_cons, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
          guppy_path, real_time)
