@@ -164,7 +164,6 @@ def main(infile, outfile, bedfile):
     read_prime_pair_lookup = pathlib.Path(outfile.parent, "read_primer_pair_lookup.json")
     runfolder = pathlib.Path(outfile.parent.parent.parent)
     runname = runfolder.parts[-1]
-    print(runfolder, runname)
     mappingfile = pathlib.Path(runfolder, runname + '_mapping.csv')
 
     # set counters

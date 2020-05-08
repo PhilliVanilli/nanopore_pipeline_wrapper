@@ -34,6 +34,8 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     # get folder paths
     project_path = pathlib.Path(project_path).absolute()
     plot_folder = pathlib.Path(project_path, "seq_depth_plots")
+    if os.path.exists(plot_folder):
+        shutil.rmtree(plot_folder)
     plot_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
     run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
@@ -243,8 +245,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             try_except_exit_on_fail(make_index_cmd)
 
         all_sample_files = pathlib.Path(sample_folder).glob("*/*.fastq")
-        number_samples = len(list(all_sample_files))
-        print(number_samples)
 
         # make variable for project file containing all samples' consensus sequences
         project_name = project_path.parts[-1]
@@ -257,108 +257,105 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         with open(p, 'w') as fh:
             fh.close()
 
-        x = 0
-        y = 0
+        samples_run = 1
         for sample_fastq in all_sample_files:
-            print('kak')
-            # check if not already 4 samples being processed, else wait till one finishes
-            if x <= 1:
-                x = x+1
-                print('kak2')
 
-                # get folder paths
-                sample_name = pathlib.Path(sample_fastq).stem
-                sample_folder = pathlib.Path(sample_fastq).parent
-                os.chdir(sample_folder)
-                seq_summary_file_name = ""
-                for file in project_path.glob('sequencing_summary*.txt'):
-                    seq_summary_file_name = file
-                seq_summary_file = pathlib.Path(seq_summary_file_name).resolve()
-                artic_folder = pathlib.Path(sample_folder, "artic")
-                artic_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
+            # get folder paths
+            sample_folder = pathlib.Path(sample_fastq).parent
+            sample_name = pathlib.Path(sample_fastq).stem
+            os.chdir(sample_folder)
+            seq_summary_file_name = ""
+            for file in project_path.glob('sequencing_summary*.txt'):
+                seq_summary_file_name = file
+            seq_summary_file = pathlib.Path(seq_summary_file_name).resolve()
+            artic_folder = pathlib.Path(sample_folder, "artic")
+            if os.path.exists(artic_folder):
+                shutil.rmtree(artic_folder)
+            artic_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
 
-                # check if fastq is present
-
-                if not sample_fastq.is_file():
-                    print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
-                    with open(log_file, "a") as handle:
-                        handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
-                    continue
-
-                print(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
+            # check if fastq is present
+            if not sample_fastq.is_file():
+                print(f"\nCould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
                 with open(log_file, "a") as handle:
                     handle.write(
-                        f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
+                        f"\nCould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
+                continue
+            print(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
+            with open(log_file, "a") as handle:
+                handle.write(
+                    f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
 
-                # start artic pipeline in new window
+            # start artic pipeline in new window
+            print(f"\n------->Running Artic's pipeline in new window\n")
+            with open(log_file, "a") as handle:
+                handle.write(
+                    f"\n------->Running Artic's pipeline in new window\n\n")
 
-                print(f"\n------->Starting Artic's pipeline in new window\n")
+            artic_cmd = f"artic minion --normalise 200 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
+                        f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
+                        f"--sequencing-summary {seq_summary_file} nCoV-2019/V3 {sample_name} " \
+                        f"2>&1 | tee -a {log_file}"
+            print(artic_cmd)
+            try_except_continue_on_fail(
+                f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}'")
+
+            last_file_made = pathlib.Path(sample_folder, sample_name + ".muscle.out.fasta")
+            while pathlib.Path.exists(last_file_made) == False:
+                time.sleep(5)
+            else:
+                time.sleep(2)
+                all_files = os.listdir(sample_folder)
+
+                # write consensus to master consensus file
+                artic_cons_file = pathlib.Path(sample_folder, sample_name + ".consensus.fasta")
+                artic_d = fasta_to_dct(artic_cons_file)
+                with open(all_samples_consens_seqs, 'a') as fh:
+                    for name, seq in artic_d.items():
+                        fh.write(f">{name}\n{seq.replace('-', '')}\n")
+
+                for filename in all_files:
+                    if os.path.isfile(filename) and not filename.endswith('.fastq'):
+                        file = os.path.join(sample_folder, filename)
+                        shutil.move(file, artic_folder)
+
+            # start majority consensus pipeline in new window
+            if msa_cons:
+                print(f"\n------->Running majority consensus pipeline in new window\n")
                 with open(log_file, "a") as handle:
                     handle.write(
-                        f"\n------->Starting Artic's pipeline in new window\n")
+                        f"\n------->Running majority consensus pipeline in new window\n")
 
-                artic_cmd = f"artic minion --normalise 200 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
-                            f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
-                            f"--sequencing-summary {seq_summary_file} nCoV-2019/V3 {sample_name} " \
-                            f"2>&1 | tee -a {log_file}"
-                try_except_continue_on_fail(
-                    f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}; exec bash'")
-                last_file_made = pathlib.Path(sample_folder, sample_name + ".muscle.out.fasta")
-                while pathlib.Path.exists(last_file_made) == False:
+                # majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
+                #                f"{use_minmap2} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
+                #                f"-t {threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
+                #
+                # print(majority_cmd)
+                # try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
+
+                open(f"{sample_name}_msa_from_bam_file.fasta", "w+")
+                last_file_made_2 = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
+                while pathlib.Path.exists(last_file_made_2) == False:
                     time.sleep(5)
                 else:
-                    time.sleep(2)
-                    all_files = os.listdir(sample_folder)
+                    print(f"\ncontinuing with sample {samples_run + 1}\n")
 
-                    # write consensus to master consensus file
+            number_png_files = 1 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+            if samples_run > number_png_files:
+                print('\nalready processing 4 samples, waiting for completion of an msa\n')
+            number_png_files = 1 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+            while samples_run > number_png_files:
+                time.sleep(10)
+                number_png_files = 1 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+            samples_run += 1
 
-                    artic_cons_file = pathlib.Path(sample_folder, sample_name + ".consensus.fasta")
-                    artic_d = fasta_to_dct(artic_cons_file)
-                    with open(all_samples_consens_seqs, 'a') as fh:
-                        for name, seq in artic_d.items():
-                            fh.write(f">{name}\n{seq.replace('-', '')}\n")
-
-                    for filename in all_files:
-                        if os.path.isfile(filename) and not filename.endswith('.fastq'):
-                            file = os.path.join(sample_folder, filename)
-                            shutil.move(file, artic_folder)
-
-                # start majority consensus pipeline in new window
-
-                if msa_cons:
-                    print(f"\n------->Starting majority consensus pipeline in new window\n")
-                    with open(log_file, "a") as handle:
-                        handle.write(
-                            f"\n------->Starting majority consensus pipeline in new window\n")
-
-                    majority_cmd = f"python ~/nanopore_pipeline_wrapper/analyse_sample.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
-                                   f"{use_minmap2} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
-                                   f"-t {threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs} " \
-                                   f"2>&1 | tee -a {log_file}"
-                    print(majority_cmd)
-                    try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}; exec bash'")
-
-                    last_file_made_2 = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
-                    while pathlib.Path.exists(last_file_made_2) == False:
-                        time.sleep(5)
-                    else:
-                        print("continuing with next sample")
-            else:
-                print('already processing 4 samples, waiting for completion of an msa')
-                number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
-                while number_png_files == y:
-                    time.sleep(10)
-                else:
-                    x = x-1
-                    y += 1
         # align the master consensus file as soon as all sequencing_depth.png files made
-
+        number_samples = len(list(sample_folder.glob("*/*.fastq")))
         number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
-        print(number_png_files)
         if number_png_files < number_samples:
             print('waiting for all msa to be completed')
         while number_png_files < number_samples:
             time.sleep(10)
+            number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
         else:
             sample_summary(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)
 
@@ -367,7 +364,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         handle.write(f"\nsample processing completed\n\n")
 
     # compress fast5 files
-
     targzpath = pathlib.Path(project_path.parent, run_name + ".tar.gz")
     tarcmd = f"tar cf - {fast5_dir} | pigz -7 -p 16  > {targzpath}"
     try_except_exit_on_fail(tarcmd)
