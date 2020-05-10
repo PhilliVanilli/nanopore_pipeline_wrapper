@@ -245,6 +245,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             try_except_exit_on_fail(make_index_cmd)
 
         all_sample_files = pathlib.Path(sample_folder).glob("*/*.fastq")
+        number_samples = len(list(sample_folder.glob('*/*.fastq')))
 
         # make variable for project file containing all samples' consensus sequences
         project_name = project_path.parts[-1]
@@ -280,16 +281,16 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                     handle.write(
                         f"\nCould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
                 continue
-            print(f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
+            print(f"\n________________\nStarting processing sample: {sample_name}\n________________\n")
             with open(log_file, "a") as handle:
                 handle.write(
-                    f"\n\n________________\nStarting processing sample: {sample_name}\n\n________________\n")
+                    f"\n________________\nStarting processing sample: {sample_name}\n________________\n")
 
             # start artic pipeline in new window
             print(f"\n------->Running Artic's pipeline in new window\n")
             with open(log_file, "a") as handle:
                 handle.write(
-                    f"\n------->Running Artic's pipeline in new window\n\n")
+                    f"\n------->Running Artic's pipeline in new window\n")
 
             artic_cmd = f"artic minion --normalise 200 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
                         f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
@@ -325,37 +326,37 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                     handle.write(
                         f"\n------->Running majority consensus pipeline in new window\n")
 
-                # majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
-                #                f"{use_minmap2} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
-                #                f"-t {threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
-                #
-                # print(majority_cmd)
-                # try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
+                majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
+                               f"{use_minmap2} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
+                               f"-t {threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
 
-                open(f"{sample_name}_msa_from_bam_file.fasta", "w+")
+                print(majority_cmd)
+                try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
+
+                # open(f"{sample_name}_msa_from_bam_file.fasta", "w+")
                 last_file_made_2 = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
                 while pathlib.Path.exists(last_file_made_2) == False:
                     time.sleep(5)
                 else:
-                    print(f"\ncontinuing with sample {samples_run + 1}\n")
+                    if samples_run + 1 <= number_samples:
+                        print(f"\ncontinuing with sample {samples_run + 1}\n")
 
-            number_png_files = 1 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+            number_png_files = 5 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             if samples_run > number_png_files:
                 print('\nalready processing 4 samples, waiting for completion of an msa\n')
-            number_png_files = 1 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+            number_png_files = 5 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             while samples_run > number_png_files:
-                time.sleep(10)
-                number_png_files = 1 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+                time.sleep(10)s
+                number_png_files = 5 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             samples_run += 1
 
         # align the master consensus file as soon as all sequencing_depth.png files made
-        number_samples = len(list(sample_folder.glob("*/*.fastq")))
-        number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
-        if number_png_files < number_samples:
+        number_pngs = len(list(plot_folder.glob('*_sequencing_depth.png')))
+        if number_pngs < number_samples:
             print('waiting for all msa to be completed')
-        while number_png_files < number_samples:
+        while number_pngs < number_samples:
             time.sleep(10)
-            number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
+            number_pngs = len(list(plot_folder.glob('*_sequencing_depth.png')))
         else:
             sample_summary(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)
 
@@ -408,7 +409,7 @@ if __name__ == "__main__":
                              "1 = basecall in high accuracy mode\n", required=False)
     parser.add_argument("-m", "--msa", default=False, action="store_true",
                         help="Generate consensus from MSA", required=False)
-    parser.add_argument("-t", "--threads", type=int, default=11, choices=range(0, 12),
+    parser.add_argument("-t", "--threads", type=int, default=10, choices=range(0, 12),
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=8,
                         help="The number of gpu threads to use ...", required=False)

@@ -27,9 +27,9 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     sample_fastq = pathlib.Path(infile).absolute()
     script_folder = pathlib.Path(__file__).absolute().parent
     if not sample_fastq.is_file():
-        # print(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
+        print(f"\ncould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
         with open(log_file, "a") as handle:
-            handle.write(f"could not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
+            handle.write(f"\ncould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
         return False
 
     # set the reference coordinates to use
@@ -57,7 +57,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
         print(f"\nrunning: minimap2 read mapping\n")
         minimap2_cmd = f"minimap2 -a -Y -t 8 -x ava-ont {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
                        f"2>&1 | tee -a {log_file}"
-        # print("\n", minimap2_cmd, "\n")
+        print("\n", minimap2_cmd, "\n")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: bwa read mapping\n")
             handle.write(f"{minimap2_cmd}\n")
@@ -69,7 +69,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
         print(f"\nrunning: bwa read mapping\n")
         bwa_cmd = f"bwa mem -t {threads} -x ont2d {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
                   f"2>&1 | tee -a {log_file}"
-        # print("\n", bwa_cmd,"\n")
+        print("\n", bwa_cmd,"\n")
         with open(log_file, "a") as handle:
             handle.write(f"\nrunning: bwa read mapping\n")
             handle.write(f"{bwa_cmd}\n")
@@ -82,8 +82,8 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     trim_script = pathlib.Path(script_folder, "src", "clip_primers_from_bed_file.py")
     trim_primer = f"python {trim_script} -in {sam_name} -o {trimmed_sam_file} " \
                   f"-b {chosen_ref_scheme_bed_file} " \
-                  f"2>&1 | tee - a {log_file}"
-    # print("\n", trim_primer,"\n")
+                  f"2>&1 | tee -a {log_file}"
+    print("\n", trim_primer,"\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
         handle.write(f"{trim_primer}\n")
@@ -94,7 +94,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     # convert sam to bam
     print(f"\nrunning: sam to bam conversion of trimmed file")
     sam_bam_cmd = f"samtools view -bS {trimmed_sam_file} -o {trimmed_bam_file} 2>&1 | tee -a {log_file}"
-    # print("\n", sam_bam_cmd,"\n")
+    print("\n", sam_bam_cmd,"\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nrunning: sam to bam conversion\n")
         handle.write(f"{sam_bam_cmd}\n")
@@ -106,7 +106,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     print(f"\nrunning: sorting bam file")
     sort_sam_cmd = f"samtools sort -T {sample_name} {trimmed_bam_file} -o {sorted_trimmed_bam_file} " \
                    f"2>&1 | tee -a {log_file}"
-    # print("\n", sort_sam_cmd,"\n")
+    print("\n", sort_sam_cmd,"\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nrunning: sorting bam file\n{sort_sam_cmd}\n")
     run = try_except_continue_on_fail(sort_sam_cmd)
@@ -115,8 +115,8 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
 
     # index trimmed bam file
     print(f"\nrunning: indexing bam file")
-    index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee - a {log_file}"
-    # print("\n", index_bam_cmd,"\n")
+    index_bam_cmd = f"samtools index {sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
+    print("\n", index_bam_cmd,"\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nrunning: indexing bam file\n")
         handle.write(f"{index_bam_cmd}\n")
@@ -183,12 +183,12 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
                       sample_name, primer_pair_depth_outfile)
 
     # convert bam file to a mutli fasta alignment
-    # print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
+    print(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
 
     sam4web = pathlib.Path(script_folder, "jvarkit", "dist", "sam4weblogo.jar")
     msa_from_bam = f"java -jar {sam4web} -r '{reference_slice}' -o {msa_fasta} " \
                    f"{sorted_trimmed_bam_file} 2>&1 | tee -a {log_file}"
-    # print(msa_from_bam)
+    print(msa_from_bam)
 
     with open(log_file, "a") as handle:
         handle.write(f"\nrunning: making consensuses sequence from bam to MSA with jvarkit\n")
@@ -234,11 +234,11 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
         depth_outfile = pathlib.Path(plot_folder, sample_name + "_sequencing_depth.png")
         plot_depth(depth_list, sample_name, depth_outfile)
 
-    # print(f"Completed processing sample: {sample_name}\n\n")
+    print(f"Completed processing sample: {sample_name}\n\n")
     # with open(log_file, "a") as handle:
     #     handle.write(f"\n\n________________\nCompleted processing sample: {sample_name}\n\n________________\n")
 
-    # print("done")
+    print("done")
 
 
 if __name__ == "__main__":
