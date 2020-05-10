@@ -350,7 +350,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
             number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             if samples_run > number_png_files:
-                print('\nalready processing 4 samples, waiting for completion of an msa\n')
+                print('\nalready processing 8 samples, waiting for completion of an msa\n')
             number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             while samples_run > number_png_files:
                 time.sleep(10)
