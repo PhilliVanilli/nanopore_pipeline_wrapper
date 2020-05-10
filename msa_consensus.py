@@ -86,7 +86,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     print("\n", trim_primer,"\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nrunning: soft clipping primer sequences from bam file\n")
-        handle.write(f"{trim_primer}\n")
+        handle.write(f"{trim_primer}\n\n")
     run = try_except_continue_on_fail(trim_primer)
     if not run:
         return False

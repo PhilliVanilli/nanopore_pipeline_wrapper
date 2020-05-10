@@ -24,8 +24,15 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 
 def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, basecall_mode, msa_cons, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         rerun_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
          guppy_path, real_time):
+
+    # set threads
+    threads = int()
+    if msa_cons:
+        threads = cpu_cores - 8
+    else:
+        threads = cpu_cores
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -281,10 +288,10 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                     handle.write(
                         f"\nCould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
                 continue
-            print(f"\n________________\nStarting processing sample: {sample_name}\n________________\n")
+            print(f"\n________________\n\nStarting processing sample: {sample_name}\n________________\n")
             with open(log_file, "a") as handle:
                 handle.write(
-                    f"\n________________\nStarting processing sample: {sample_name}\n________________\n")
+                    f"\n________________\n\nStarting processing sample: {sample_name}\n________________\n")
 
             # start artic pipeline in new window
             print(f"\n------->Running Artic's pipeline in new window\n")
@@ -341,13 +348,13 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                     if samples_run + 1 <= number_samples:
                         print(f"\ncontinuing with sample {samples_run + 1}\n")
 
-            number_png_files = 5 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+            number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             if samples_run > number_png_files:
                 print('\nalready processing 4 samples, waiting for completion of an msa\n')
-            number_png_files = 5 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+            number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             while samples_run > number_png_files:
-                time.sleep(10)s
-                number_png_files = 5 + len(list(plot_folder.glob('*_sequencing_depth.png')))
+                time.sleep(10)
+                number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
             samples_run += 1
 
         # align the master consensus file as soon as all sequencing_depth.png files made
@@ -409,7 +416,7 @@ if __name__ == "__main__":
                              "1 = basecall in high accuracy mode\n", required=False)
     parser.add_argument("-m", "--msa", default=False, action="store_true",
                         help="Generate consensus from MSA", required=False)
-    parser.add_argument("-t", "--threads", type=int, default=10, choices=range(0, 12),
+    parser.add_argument("-c", "--cpu_cores", type=int, default=15, choices=range(0, 16),
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=8,
                         help="The number of gpu threads to use ...", required=False)
@@ -437,7 +444,7 @@ if __name__ == "__main__":
     run_step_only = args.run_step_only
     basecall_mode = args.basecall_mode
     msa_cons = args.msa
-    threads = args.threads
+    cpu_cores = args.cpu_cores
     gpu_cores = args.gpu_cores
     gpu_buffers = args.gpu_buffers
     use_gaps = args.use_gaps
@@ -446,5 +453,5 @@ if __name__ == "__main__":
     real_time = args.real_time
 
     main(project_path, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         run_step_only, basecall_mode, msa_cons, threads, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         run_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
          guppy_path, real_time)
