@@ -5,6 +5,7 @@ import pathlib
 import datetime
 import pandas as pd
 import shutil
+import timeit
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
@@ -27,12 +28,15 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
          rerun_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
          guppy_path, real_time):
 
+    start = timeit.timeit()
+
+    threads = cpu_cores
     # set threads
-    threads = int()
-    if msa_cons:
-        threads = cpu_cores - 8
-    else:
-        threads = cpu_cores
+    # threads = int()
+    # if msa_cons:
+    #     threads = cpu_cores - 8
+    # else:
+    #     threads = cpu_cores
 
     # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -53,7 +57,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         sys.exit("Could not find sample_names.csv in porject folder")
     demultiplexed_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
-    print(sample_folder)
+    # print(sample_folder)
     # master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
     time_stamp = str('{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now()))
     log_file = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file.txt")
@@ -75,6 +79,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     chosen_ref_scheme = str(reference_scheme[reference])
     chosen_ref_scheme_bed_file = chosen_ref_scheme.replace(".reference.fasta", ".scheme.bed")
+    scheme_name = reference.replace("_V1_", "_")
     ref_name, ref_seq = list(py3_fasta_iter(chosen_ref_scheme))[0]
     ref_name = ref_name.split()[0]
     if not ref_start or ref_start == 0:
@@ -266,8 +271,8 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             fh.close()
 
         samples_run = 1
+        old_number_png_files = 0
         for sample_fastq in all_sample_files:
-
             # get folder paths
             sample_folder = pathlib.Path(sample_fastq).parent
             sample_name = pathlib.Path(sample_fastq).stem
@@ -301,7 +306,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
             artic_cmd = f"artic minion --normalise 200 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
                         f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
-                        f"--sequencing-summary {seq_summary_file} nCoV-2019/V3 {sample_name} " \
+                        f"--sequencing-summary {seq_summary_file} {scheme_name} {sample_name} " \
                         f"2>&1 | tee -a {log_file}"
             print(artic_cmd)
             try_except_continue_on_fail(
@@ -328,10 +333,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
             # start majority consensus pipeline in new window
             if msa_cons:
-                print(f"\n------->Running majority consensus pipeline in new window\n")
+
+                print(f"\n\n------->Running majority consensus pipeline in new window\n")
                 with open(log_file, "a") as handle:
                     handle.write(
-                        f"\n------->Running majority consensus pipeline in new window\n")
+                        f"\n\n------->Running majority consensus pipeline in new window\n")
 
                 majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
                                f"{use_minmap2} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
@@ -348,14 +354,15 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                     if samples_run + 1 <= number_samples:
                         print(f"\ncontinuing with sample {samples_run + 1}\n")
 
-            number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
-            if samples_run > number_png_files:
-                print('\nalready processing 8 samples, waiting for completion of an msa\n')
-            number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
-            while samples_run > number_png_files:
-                time.sleep(10)
-                number_png_files = 8 + len(list(plot_folder.glob('*_sequencing_depth.png')))
-            samples_run += 1
+                # keep threads balanced
+                print(old_number_png_files)
+                number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
+                print(number_png_files)
+                difference = number_png_files - old_number_png_files
+                old_number_png_files = number_png_files
+                threads = threads - 1 + difference
+                print(f'{threads} = {threads} -1 + {difference})')
+                samples_run += 1
 
         # align the master consensus file as soon as all sequencing_depth.png files made
         number_pngs = len(list(plot_folder.glob('*_sequencing_depth.png')))
@@ -367,9 +374,13 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         else:
             sample_summary(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)
 
+    end = timeit.timeit()
+    print(end-start)
+
     print("sample processing completed\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
+        handle.write(f"\ntime elapsed = {end-start}\n\n")
 
     # compress fast5 files
     targzpath = pathlib.Path(project_path.parent, run_name + ".tar.gz")
@@ -385,9 +396,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-in", "--project_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the directory containing the 'fast5' and 'fastq' folders ", required=True)
-    parser.add_argument("-r", "--reference", type=str, default="ChikAsianECSA_V1",
-                        help="The reference genome and primer scheme to use",
-                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800", "SARS2_V1_400"], required=False)
+    parser.add_argument("-r", "--reference", type=str, help="The reference genome and primer scheme to use",
+                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800", "SARS2_V1_400"], required=True)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
                         help="The start coordinate of the reference sequence for read mapping", required=False)
     parser.add_argument("-re", "--reference_end", default=False, type=int,
