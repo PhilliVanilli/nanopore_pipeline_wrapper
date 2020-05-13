@@ -5,7 +5,7 @@ import pathlib
 import datetime
 import pandas as pd
 import shutil
-import timeit
+from datetime import datetime
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
@@ -27,8 +27,6 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
          rerun_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
          guppy_path, real_time):
-
-    start = timeit.timeit()
 
     threads = cpu_cores
     # set threads
@@ -64,6 +62,12 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     with open(log_file, "w") as handle:
         handle.write(f"# start of pipeline run for project: {run_name}\n")
+
+    now = datetime.now()
+    date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
+    print(f"\nstart time = {date_time}\n\n")
+    with open(log_file, "a") as handle:
+        handle.write(f"\nstart time = {date_time}\n\n")
 
     # set dir to project dir so that output is written in correct place by external tools
     os.chdir(project_path)
@@ -355,13 +359,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                         print(f"\ncontinuing with sample {samples_run + 1}\n")
 
                 # keep threads balanced
-                print(old_number_png_files)
                 number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
-                print(number_png_files)
+                print(f'{number_png_files} png files created')
                 difference = number_png_files - old_number_png_files
                 old_number_png_files = number_png_files
                 threads = threads - 1 + difference
-                print(f'{threads} = {threads} -1 + {difference})')
                 samples_run += 1
 
         # align the master consensus file as soon as all sequencing_depth.png files made
@@ -374,13 +376,15 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         else:
             sample_summary(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)
 
-    end = timeit.timeit()
-    print(end-start)
+    now = datetime.now()
+    date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
+    print(f"\nend time = {date_time}\n\n")
+    with open(log_file, "a") as handle:
+        handle.write(f"\nend time = {date_time}\n\n")
 
     print("sample processing completed\n")
     with open(log_file, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
-        handle.write(f"\ntime elapsed = {end-start}\n\n")
 
     # compress fast5 files
     targzpath = pathlib.Path(project_path.parent, run_name + ".tar.gz")
