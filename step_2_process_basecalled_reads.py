@@ -5,7 +5,6 @@ import pathlib
 import datetime
 import pandas as pd
 import shutil
-from datetime import datetime
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import try_except_exit_on_fail
 from src.misc_functions import py3_fasta_iter
@@ -55,7 +54,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         sys.exit("Could not find sample_names.csv in porject folder")
     demultiplexed_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
-    # print(sample_folder)
+    print(sample_folder)
     # master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
     time_stamp = str('{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now()))
     log_file = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file.txt")
@@ -63,7 +62,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     with open(log_file, "w") as handle:
         handle.write(f"# start of pipeline run for project: {run_name}\n")
 
-    now = datetime.now()
+    now = datetime.datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
     print(f"\nstart time = {date_time}\n\n")
     with open(log_file, "a") as handle:
@@ -183,10 +182,8 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 #               f"--fastq_qmax 100 --fastqout {new_name}"
                 # try_except_exit_on_fail(bash_cmd)
 
-        if not rerun_step_only and not msa_cons:
+        if not rerun_step_only:
             run_step = 3
-        elif not rerun_step_only and msa_cons:
-            run_step = 4
         elif rerun_step_only:
             sys.exit("filer demultiplexed files and rename them completed, exiting")
         else:
@@ -376,7 +373,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         else:
             sample_summary(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)
 
-    now = datetime.now()
+    now = datetime.datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
     print(f"\nend time = {date_time}\n\n")
     with open(log_file, "a") as handle:
