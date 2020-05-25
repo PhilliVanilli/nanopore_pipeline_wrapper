@@ -37,7 +37,7 @@ def read_bed_file(primerset_bed):
                 raise ValueError
 
             row['end'] = int(row['end'])
-            row['start'] = int(row['start'])
+            row['start'] = int(row['start'])+1
             out_bedfile.append(row)
 
     return out_bedfile
