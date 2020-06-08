@@ -24,7 +24,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 
 def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         rerun_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
          guppy_path, real_time):
 
     threads = cpu_cores
@@ -250,7 +250,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
-        if not use_minmap2:
+        if use_bwa:
             make_index_cmd = f"bwa index {chosen_ref_scheme}"
             with open(log_file, "a") as handle:
                 handle.write(f"\n{make_index_cmd}\n")
@@ -305,7 +305,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 handle.write(
                     f"\n------->Running Artic's pipeline in new window\n")
 
-            artic_cmd = f"artic minion --normalise 200 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
+            artic_cmd = f"artic minion --normalise 400 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
                         f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
                         f"--sequencing-summary {seq_summary_file} {scheme_name} {sample_name} " \
                         f"2>&1 | tee -a {log_file}"
@@ -341,7 +341,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                         f"\n\n------->Running majority consensus pipeline in new window\n")
 
                 majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
-                               f"{use_minmap2} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
+                               f"{use_bwa} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
                                f"-t {threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
 
                 print(majority_cmd)
@@ -435,8 +435,8 @@ if __name__ == "__main__":
                         help="The number of gpu buffers to use for demultiplexing", required=False)
     parser.add_argument("--use_gaps", default='', action="store_const", const='-ug',
                         help="use gap characters when making the consensus sequences", required=False)
-    parser.add_argument("--use_minmap2", default='', action="store_const", const='-mm',
-                        help="use minimap2 instead of bwa to map reads to reference", required=False)
+    parser.add_argument("--use_bwa", default='', action="store_const", const='-bwa',
+                        help="use bwa instead of minimap2 to map reads to reference", required=False)
     parser.add_argument("-p", "--guppy_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the guppy executables eg: '.../ont-guppy/bin/'", required=True)
     parser.add_argument("-rt", "--real_time", default=False, action="store_true",
@@ -459,10 +459,10 @@ if __name__ == "__main__":
     gpu_cores = args.gpu_cores
     gpu_buffers = args.gpu_buffers
     use_gaps = args.use_gaps
-    use_minmap2 = args.use_minmap2
+    use_bwa = args.use_bwa
     guppy_path = args.guppy_path
     real_time = args.real_time
 
     main(project_path, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         run_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_minmap2,
+         run_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
          guppy_path, real_time)

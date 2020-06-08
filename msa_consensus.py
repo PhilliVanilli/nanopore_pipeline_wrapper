@@ -21,7 +21,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
     pass
 
 
-def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_ref_scheme_bed_file, threads,
+def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_scheme_bed_file, threads,
          min_depth, use_gaps, all_samples_consens_seqs):
     # force absolute file paths
     sample_fastq = pathlib.Path(infile).absolute()
@@ -40,6 +40,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     # set input and output file name
     sample_name = pathlib.Path(sample_fastq).stem
     sample_folder = pathlib.Path(sample_fastq).parent
+    project_path = sample_folder.parent.parent
     sam_name = pathlib.Path(sample_folder, sample_name + "_mapped.sam")
     trimmed_sam_file = pathlib.Path(sample_folder, sample_name + ".primerclipped.sam")
     trimmed_bam_file = pathlib.Path(sample_folder, sample_name + ".primerclipped.bam")
@@ -52,7 +53,7 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     # make sure cwd is the sample folder, as some programs output to cwd
     os.chdir(sample_folder)
 
-    if use_minmap2:
+    if not use_bwa:
         # run read mapping using minimap
         print(f"\nrunning: minimap2 read mapping\n")
         minimap2_cmd = f"minimap2 -a -Y -t 8 -x ava-ont {chosen_ref_scheme} {sample_fastq} -o {sam_name} " \
@@ -174,6 +175,10 @@ def main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme, chosen_r
     for primer_pair, names_list in read_primer_pairs_dct.items():
         primers_depth.append(len(names_list))
         primer_pairs.append(primer_pair)
+    mean_depth = round(sum(primers_depth)/len(primers_depth))
+    depth_outfile = pathlib.Path(sample_folder, f"{sample_name}_depth.csv")
+    with open(depth_outfile, 'a') as fh:
+        fh.write(f"{sample_name},{mean_depth}\n")
 
     max_depth = max(primers_depth)
     percent_primers_depth = [round(val / max_depth * 100, 2) for val in primers_depth]
@@ -252,8 +257,8 @@ if __name__ == "__main__":
                         help='The path to where the plots will be written')
     parser.add_argument('-lf', '--log_file', type=str, default=None, required=True,
                         help='The name and path for the logfile')
-    parser.add_argument("-mm", "--use_minmap2", default=False, action="store_true",
-                        help="use minimap2 instead of bwa to map reads to reference", required=False)
+    parser.add_argument("-bwa", "--use_bwa", default=False, action="store_true",
+                        help="use bwa instead of minimap2 to map reads to reference", required=False)
     parser.add_argument('-rs', '--chosen_ref_scheme', type=str, default=None, required=True,
                         help='The path and name of the reference scheme fasta file')
     parser.add_argument('-bf', '--chosen_ref_scheme_bed_file', type=str, default=None, required=True,
@@ -271,7 +276,7 @@ if __name__ == "__main__":
     infile = args.infile
     plot_folder = args.plot_folder
     log_file = args.log_file
-    use_minmap2 = args.use_minmap2
+    use_bwa = args.use_bwa
     chosen_ref_scheme = args.chosen_ref_scheme
     chosen_ref_scheme_bed_file = args.chosen_ref_scheme_bed_file
     threads = args.threads
@@ -279,5 +284,5 @@ if __name__ == "__main__":
     use_gaps = args.use_gaps
     all_samples_consens_seqs = args.all_samples_consens_seqs
 
-    main(infile, plot_folder, log_file, use_minmap2, chosen_ref_scheme,
+    main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme,
          chosen_ref_scheme_bed_file, threads, min_depth, use_gaps, all_samples_consens_seqs)

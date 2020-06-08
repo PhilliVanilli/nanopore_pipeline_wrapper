@@ -45,6 +45,7 @@ def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
                 percent_coverage = round((seq_coverage / ref_length) * 100, 2)
                 fh.write(f"{v_name},{percent_coverage}\n")
 
+
     print("done")
 
 
