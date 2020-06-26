@@ -2,6 +2,7 @@ import argparse
 import pathlib
 import os
 import sys
+import csv
 from src.misc_functions import try_except_continue_on_fail
 from src.misc_functions import fasta_to_dct
 from src.misc_functions import py3_fasta_iter
@@ -27,23 +28,28 @@ def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
     else:
         all_samples_consens_seqs.unlink()
         os.rename(str(tmp_file), str(all_samples_consens_seqs))
-
-        # calculate coverage
+        # calculate & collect seq stats
         ref_length = len(ref_seq)
-        coverage_outfile = pathlib.Path(project_path, f"{run_name}_genome_coverage.csv")
+        seqstats_outfile = pathlib.Path(project_path, f"{run_name}_seqstats.csv")
         all_consensus_d = fasta_to_dct(all_samples_consens_seqs)
         ref_lookup_name = list(all_consensus_d.keys())[0]
         aligned_ref = all_consensus_d[ref_lookup_name]
+        sample_folder = pathlib.Path(project_path, "samples")
         del all_consensus_d[ref_lookup_name]
-        with open(coverage_outfile, 'w') as fh:
-            fh.write("sample_name,genome_coverage\n")
+        with open(seqstats_outfile, 'w') as fh:
+            fh.write("sample_name,genome_coverage,mean_depth\n")
             for v_name, v_seq in all_consensus_d.items():
+                seqname = v_name[0:-9]
+                depth_file = csv.reader(open(f"{sample_folder}/{seqname}/{seqname}_depth.csv", "r"))
+                mean_depth = ""
+                for k, v in depth_file:
+                    mean_depth = v
                 seq_coverage = 0
                 for i, base in enumerate(v_seq.upper()):
                     if base != "-" and base != "N" and aligned_ref[i] != "-":
                         seq_coverage += 1
                 percent_coverage = round((seq_coverage / ref_length) * 100, 2)
-                fh.write(f"{v_name},{percent_coverage}\n")
+                fh.write(f"{v_name},{percent_coverage},{mean_depth}\n")
 
 
     print("done")

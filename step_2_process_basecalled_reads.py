@@ -1,6 +1,7 @@
 import os, time
 import sys
 import argparse
+import re
 import pathlib
 import datetime
 import pandas as pd
@@ -248,6 +249,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     if run_step == 4:
         print("Running variant calling on samples")
+
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
         if use_bwa:
@@ -303,7 +305,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             print(f"\n------->Running Artic's pipeline in new window\n")
             with open(log_file, "a") as handle:
                 handle.write(
-                    f"\n------->Running Artic's pipeline in new window\n")
+                    f"\n------->Running Artic's pipeline in new window\n\n")
 
             artic_cmd = f"artic minion --normalise 400 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
                         f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
@@ -325,7 +327,8 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 artic_d = fasta_to_dct(artic_cons_file)
                 with open(all_samples_consens_seqs, 'a') as fh:
                     for name, seq in artic_d.items():
-                        fh.write(f">{name}\n{seq.replace('-', '')}\n")
+                        newname = re.sub("/ARTIC.*", "_art", name)
+                        fh.write(f">{newname}\n{seq.replace('-', '')}\n")
 
                 for filename in all_files:
                     if os.path.isfile(filename) and not filename.endswith('.fastq'):
@@ -363,7 +366,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 threads = threads - 1 + difference
                 samples_run += 1
 
-        # align the master consensus file as soon as all sequencing_depth.png files made
+        # run sample summary as soon as all sequencing_depth.png files made
         number_pngs = len(list(plot_folder.glob('*_sequencing_depth.png')))
         if number_pngs < number_samples:
             print('waiting for all msa to be completed')
@@ -372,6 +375,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             number_pngs = len(list(plot_folder.glob('*_sequencing_depth.png')))
         else:
             sample_summary(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name)
+
 
     now = datetime.datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")

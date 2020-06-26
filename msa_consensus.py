@@ -23,6 +23,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_scheme_bed_file, threads,
          min_depth, use_gaps, all_samples_consens_seqs):
+    print(f"mindepth = {min_depth}")
     # force absolute file paths
     sample_fastq = pathlib.Path(infile).absolute()
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -35,7 +36,7 @@ def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_s
     # set the reference coordinates to use
     ref_name, ref_seq = list(py3_fasta_iter(chosen_ref_scheme))[0]
     ref_name = ref_name.split()[0]
-    reference_slice = f"{ref_name}:0-{len(ref_seq)}"
+    reference_slice = f"{ref_name}:1-{len(ref_seq)}"
 
     # set input and output file name
     sample_name = pathlib.Path(sample_fastq).stem
@@ -181,6 +182,8 @@ def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_s
         fh.write(f"{sample_name},{mean_depth}\n")
 
     max_depth = max(primers_depth)
+    if max_depth == 0:
+        max_depth = 1
     percent_primers_depth = [round(val / max_depth * 100, 2) for val in primers_depth]
     primers_and_depths = zip(primer_pairs, primers_depth)
 
@@ -209,6 +212,9 @@ def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_s
         print(f"{sam_name} alignment had no sequences\nskipping to next sample\n")
         # with open(log_file, "a") as handle:
         #     handle.write(f"{sam_name} alignment had no sequences\nskipping to next sample\n")
+        depth_outfile = pathlib.Path(plot_folder, sample_name + "_sequencing_depth.png")
+        empty_file = open(depth_outfile, 'w')
+        empty_file.close()
         return False
 
     # set minimum depth for calling a position in the consensus sequence per primer region
@@ -228,11 +234,11 @@ def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_s
         #     handle.write(f"\nNo MSA made from Bam file\nno reads may have been mapped\n{e}\n")
     else:
         with open(msa_cons, 'w') as handle:
-            handle.write(f">{sample_name}\n{cons}\n")
+            handle.write(f">{sample_name}_msa\n{cons}\n")
 
         # write consensus to master consensus file
         with open(all_samples_consens_seqs, 'a') as fh:
-            fh.write(f">{sample_name}\n{cons.replace('-', '')}\n")
+            fh.write(f">{sample_name}_msa\n{cons.replace('-', '')}\n")
 
         # plot depth for sample
         depth_list = depth_profile["non_gap"]
