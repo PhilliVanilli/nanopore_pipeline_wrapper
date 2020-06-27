@@ -222,7 +222,7 @@ def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_s
     for (primerpair, depth) in primers_and_depths:
         start_pos = int(primerpair.split("_")[0])
         end_pos = int(primerpair.split("_")[1])
-        for i in range(start_pos, end_pos + 1):
+        for i in range(start_pos, end_pos):
             positional_depth[str(i).zfill(4)] += depth
 
     # build the consensus sequence
