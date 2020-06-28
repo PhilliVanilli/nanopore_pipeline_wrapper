@@ -78,7 +78,7 @@ def main(infile, outpath, ref_name, scheme_name):
         fh1.write("genome\tstart\tend\tPrimer_ID\tnumber\n")
 
         for primer, (primer_start, primer_end, seq) in collected_d.items():
-            num = primer.split("_")[2]
+            num = primer.split("_")[1]
             len_primer = len(seq.replace("-", ""))
             ref_start = len(ref_sequence[:primer_start].replace("-", ""))
             ref_end = ref_start + len_primer
