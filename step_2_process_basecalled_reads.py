@@ -25,7 +25,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 
 def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
+         rerun_step_only, basecall_mode, msa_cons, artic, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
          guppy_path, real_time):
 
     threads = cpu_cores
@@ -304,38 +304,39 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                     f"\n________________\n\nStarting processing sample: {sample_name}\n________________\n")
 
             # start artic pipeline in new window
-            print(f"\n------->Running Artic's pipeline in new window\n")
-            with open(log_file, "a") as handle:
-                handle.write(
-                    f"\n------->Running Artic's pipeline in new window\n\n")
+            if artic:
+                print(f"\n------->Running Artic's pipeline in new window\n")
+                with open(log_file, "a") as handle:
+                    handle.write(
+                        f"\n------->Running Artic's pipeline in new window\n\n")
 
-            artic_cmd = f"artic minion --normalise 400 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
-                        f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
-                        f"--sequencing-summary {seq_summary_file} {scheme_name} {sample_name} " \
-                        f"2>&1 | tee -a {log_file}"
-            print(artic_cmd)
-            try_except_continue_on_fail(
-                f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}'")
+                artic_cmd = f"artic minion --normalise 400 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
+                            f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
+                            f"--sequencing-summary {seq_summary_file} {scheme_name} {sample_name} " \
+                            f"2>&1 | tee -a {log_file}"
+                print(artic_cmd)
+                try_except_continue_on_fail(
+                    f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}'")
 
-            last_file_made = pathlib.Path(sample_folder, sample_name + ".muscle.out.fasta")
-            while pathlib.Path.exists(last_file_made) == False:
-                time.sleep(5)
-            else:
-                time.sleep(2)
-                all_files = os.listdir(sample_folder)
+                last_file_made = pathlib.Path(sample_folder, sample_name + ".muscle.out.fasta")
+                while pathlib.Path.exists(last_file_made) == False:
+                    time.sleep(5)
+                else:
+                    time.sleep(2)
+                    all_files = os.listdir(sample_folder)
 
-                # write consensus to master consensus file
-                artic_cons_file = pathlib.Path(sample_folder, sample_name + ".consensus.fasta")
-                artic_d = fasta_to_dct(artic_cons_file)
-                with open(all_samples_consens_seqs, 'a') as fh:
-                    for name, seq in artic_d.items():
-                        newname = re.sub("/ARTIC.*", "_art", name)
-                        fh.write(f">{newname}\n{seq.replace('-', '')}\n")
+                    # write consensus to master consensus file
+                    artic_cons_file = pathlib.Path(sample_folder, sample_name + ".consensus.fasta")
+                    artic_d = fasta_to_dct(artic_cons_file)
+                    with open(all_samples_consens_seqs, 'a') as fh:
+                        for name, seq in artic_d.items():
+                            newname = re.sub("/ARTIC.*", "_art", name)
+                            fh.write(f">{newname}\n{seq.replace('-', '')}\n")
 
-                for filename in all_files:
-                    if os.path.isfile(filename) and not filename.endswith('.fastq'):
-                        file = os.path.join(sample_folder, filename)
-                        shutil.move(file, artic_folder)
+                    for filename in all_files:
+                        if os.path.isfile(filename) and not filename.endswith('.fastq'):
+                            file = os.path.join(sample_folder, filename)
+                            shutil.move(file, artic_folder)
 
             # start majority consensus pipeline in new window
             if msa_cons:
@@ -433,6 +434,8 @@ if __name__ == "__main__":
                              "1 = basecall in high accuracy mode\n", required=False)
     parser.add_argument("-m", "--msa", default=False, action="store_true",
                         help="Generate consensus from MSA", required=False)
+    parser.add_argument("-a", "--art", default=False, action="store_true",
+                        help="Generate consensus with Artic pipeline", required=False)
     parser.add_argument("-c", "--cpu_cores", type=int, default=15, choices=range(0, 16),
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=8,
@@ -461,6 +464,7 @@ if __name__ == "__main__":
     run_step_only = args.run_step_only
     basecall_mode = args.basecall_mode
     msa_cons = args.msa
+    artic = args.art
     cpu_cores = args.cpu_cores
     gpu_cores = args.gpu_cores
     gpu_buffers = args.gpu_buffers
@@ -470,5 +474,5 @@ if __name__ == "__main__":
     real_time = args.real_time
 
     main(project_path, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         run_step_only, basecall_mode, msa_cons, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
+         run_step_only, basecall_mode, msa_cons, artic, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
          guppy_path, real_time)

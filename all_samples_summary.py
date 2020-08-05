@@ -39,7 +39,8 @@ def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
         with open(seqstats_outfile, 'w') as fh:
             fh.write("sample_name,genome_coverage,mean_depth\n")
             for v_name, v_seq in all_consensus_d.items():
-                seqname = v_name[0:-9]
+                print(v_name)
+                seqname = v_name[0:-11]
                 depth_file = csv.reader(open(f"{sample_folder}/{seqname}/{seqname}_depth.csv", "r"))
                 mean_depth = ""
                 for k, v in depth_file:
@@ -50,7 +51,6 @@ def main(project_path, all_samples_consens_seqs, chosen_ref_scheme, run_name):
                         seq_coverage += 1
                 percent_coverage = round((seq_coverage / ref_length) * 100, 2)
                 fh.write(f"{v_name},{percent_coverage},{mean_depth}\n")
-
 
     print("done")
 
