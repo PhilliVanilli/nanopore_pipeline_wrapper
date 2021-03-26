@@ -61,7 +61,7 @@ def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_s
                        f"2>&1 | tee -a {log_file}"
         print("\n", minimap2_cmd, "\n")
         with open(log_file, "a") as handle:
-            handle.write(f"\nrunning: bwa read mapping\n")
+            handle.write(f"\nrunning: minimap read mapping\n")
             handle.write(f"{minimap2_cmd}\n")
         run = try_except_continue_on_fail(minimap2_cmd)
         if not run:
