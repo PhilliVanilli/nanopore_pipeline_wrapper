@@ -28,7 +28,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
          rerun_step_only, basecall_mode, msa_cons, artic, cpu_threads, gpu_threads, gpu_buffers, use_gaps, use_bwa,
          guppy_path, real_time):
 
-        # set the primer_scheme directory
+    # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
     primer_scheme_dir = pathlib.Path(script_folder, "primer-schemes")
 
@@ -265,6 +265,9 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             sys.exit("Run step only completed, exiting")
 
     if run_step == 4:
+
+        number_samples = (len(list(sample_folder.glob('*/*/*.fastq'))))/2
+
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
@@ -294,6 +297,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
         if artic:
             all_art_sample_files = pathlib.Path(sample_folder).glob("*/art/*.fastq")
+
             for sample_fastq in all_art_sample_files:
 
                 # get folder paths again to be sure
@@ -312,8 +316,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 # check sufficient cores
                 while used_cores == max_cores:
                     time.sleep(5)
-                else:
-                    continue
 
                 # start artic pipeline in new window
                 print(f"\n------->Running Artic's pipeline in new window\n")
@@ -329,6 +331,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 try_except_continue_on_fail(
                     f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}'")
                 used_cores += 1
+
                 # write consensus to master consensus file when last artic file made
                 last_file_made = pathlib.Path(sample_folder, sample_name + ".muscle.out.fasta")
                 while pathlib.Path.exists(last_file_made) == False:
@@ -342,6 +345,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                             newname = re.sub("/ARTIC.*", "_art", name)
                             fh.write(f">{newname}\n{seq.replace('-', '')}\n")
                     used_cores -= 1
+
         if msa:
             all_msa_sample_files = pathlib.Path(sample_folder).glob("*/msa/*.fastq")
             for sample_fastq in all_msa_sample_files:
@@ -362,8 +366,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 # check sufficient cores
                 while used_cores == max_cores:
                     time.sleep(5)
-                else:
-                    continue
 
                 # start majority consensus pipeline in new window
                 print(f"\n\n------->Running majority consensus pipeline in new window\n")
@@ -377,11 +379,12 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 print(majority_cmd)
                 try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
                 used_cores += 1
-                # open(f"{sample_name}_msa_from_bam_file.fasta", "w+")
-                # last_file_made_2 = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
-                # while pathlib.Path.exists(last_file_made_2) == False:
-                #     time.sleep(5)
-                # else:
+                last_file_made_2 = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
+                while pathlib.Path.exists(last_file_made_2) == False:
+                    time.sleep(5)
+                else:
+                    used_cores -= 1
+
                 #     if samples_run + 1 <= number_samples:
                 #         print(f"\ncontinuing with sample {samples_run + 1}\n")
 
@@ -392,6 +395,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 # old_number_png_files = number_png_files
                 # cpu_threads = cpu_threads - 1 + difference
                 # samples_run += 1
+
 
         # run sample summary as soon as all sequencing_depth.png files made
         number_pngs = len(list(plot_folder.glob('*_sequencing_depth.png')))
