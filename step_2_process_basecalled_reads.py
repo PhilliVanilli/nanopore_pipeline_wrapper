@@ -25,18 +25,10 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 
 def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_depth, run_step,
-         rerun_step_only, basecall_mode, msa_cons, artic, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
+         rerun_step_only, basecall_mode, msa_cons, artic, cpu_threads, gpu_threads, gpu_buffers, use_gaps, use_bwa,
          guppy_path, real_time):
 
-    threads = cpu_cores
-    # set threads
-    # threads = int()
-    # if msa_cons:
-    #     threads = cpu_cores - 8
-    # else:
-    #     threads = cpu_cores
-
-    # set the primer_scheme directory
+        # set the primer_scheme directory
     script_folder = pathlib.Path(__file__).absolute().parent
     primer_scheme_dir = pathlib.Path(script_folder, "primer-schemes")
 
@@ -49,7 +41,12 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     run_name = project_path.parts[-1]
     fast5_dir = pathlib.Path(project_path, "fast5")
     fastq_dir = pathlib.Path(project_path, "fastq")
-    # sequencing_summary_file = pathlib.Path(fastq_dir, "sequencing_summary.txt")
+
+    seq_summary_file_name = ""
+    for file in project_path.glob('sequencing_summary*.txt'):
+        seq_summary_file_name = file
+    seq_summary_file = pathlib.Path(seq_summary_file_name).resolve()
+
     sample_names = pathlib.Path(project_path, "sample_names.csv")
     if not sample_names:
         sys.exit("Could not find sample_names.csv in porject folder")
@@ -100,7 +97,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         handle.write(f"\nReference is {chosen_ref_scheme}\nPrimer bed file is {chosen_ref_scheme_bed_file}\n")
 
     if run_step == 0:
-        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_cores, basecall_mode, real_time, reference, script_folder)
+        run = gupppy_basecall(fast5_dir, guppy_path, fastq_dir, gpu_threads, basecall_mode, real_time, reference, script_folder)
         faildir = pathlib.Path(fastq_dir, "fail")
         shutil.rmtree(faildir)
         if run and not rerun_step_only:
@@ -120,7 +117,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             if not list(fastq_dir.glob("*.fastq*")):
                 print(f"No fastq files found in {str(fastq_dir)} or {str(fastq_dir.parent)}")
                 sys.exit("fastq files not found")
-        run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, threads, gpu_buffers, gpu_cores)
+        run = guppy_demultiplex(fastq_dir, guppy_path, demultiplexed_folder, cpu_threads, gpu_buffers, gpu_threads)
         if run and not rerun_step_only:
             run_step = 2
         elif run and rerun_step_only:
@@ -233,18 +230,35 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 barcode_2_file = ""
             else:
                 barcode_2_file = pathlib.Path(demultiplexed_folder, barcode_2)
+            if artic:
+                artic_folder = pathlib.Path(sample_dir, "art")
+                if os.path.exists(artic_folder):
+                    shutil.rmtree(artic_folder)
+                artic_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
+                cat_outfile = pathlib.Path(sample_dir, f"art/{sample_name}.fastq")
+                cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
+                print(cat_cmd)
+                run = try_except_continue_on_fail(cat_cmd)
+                if not run:
+                    print("missing one or more demultiplexed files for this sample")
+                    with open(log_file, "a") as handle:
+                        handle.write("\nmissing one or more demultiplexed files for this sample\n")
+                    continue
+            if msa_cons:
+                msa_folder = pathlib.Path(sample_dir, "msa")
+                if os.path.exists(msa_folder):
+                    shutil.rmtree(msa_folder)
+                msa_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
+                cat_outfile = pathlib.Path(sample_dir, f"msa/{sample_name}.fastq")
+                cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
+                print(cat_cmd)
+                run = try_except_continue_on_fail(cat_cmd)
+                if not run:
+                    print("missing one or more demultiplexed files for this sample")
+                    with open(log_file, "a") as handle:
+                        handle.write("\nmissing one or more demultiplexed files for this sample\n")
+                    continue
 
-            cat_outfile = pathlib.Path(sample_dir, f"{sample_name}.fastq")
-            cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
-            print(cat_cmd)
-            run = try_except_continue_on_fail(cat_cmd)
-            if not run:
-                print("missing one or more demultiplexed files for this sample")
-                with open(log_file, "a") as handle:
-                    handle.write("\nmissing one or more demultiplexed files for this sample\n")
-                continue
-        for fastq in demultiplexed_folder.glob('*.fastq'):
-            os.remove(str(fastq))
         if not rerun_step_only:
             run_step = 4
         else:
@@ -252,18 +266,16 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     if run_step == 4:
         print("Running variant calling on samples")
-
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
+
+        # make bwa index if needed
         if use_bwa:
             make_index_cmd = f"bwa index {chosen_ref_scheme}"
             with open(log_file, "a") as handle:
                 handle.write(f"\n{make_index_cmd}\n")
 
             try_except_exit_on_fail(make_index_cmd)
-
-        all_sample_files = pathlib.Path(sample_folder).glob("*/*.fastq")
-        number_samples = len(list(sample_folder.glob('*/*.fastq')))
 
         # make variable for project file containing all samples' consensus sequences
         project_name = project_path.parts[-1]
@@ -276,72 +288,84 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         with open(p, 'w') as fh:
             fh.close()
 
-        samples_run = 1
-        old_number_png_files = 0
-        for sample_fastq in all_sample_files:
-            # get folder paths
-            sample_folder = pathlib.Path(sample_fastq).parent
-            sample_name = pathlib.Path(sample_fastq).stem
-            os.chdir(sample_folder)
-            seq_summary_file_name = ""
-            for file in project_path.glob('sequencing_summary*.txt'):
-                seq_summary_file_name = file
-            seq_summary_file = pathlib.Path(seq_summary_file_name).resolve()
-            artic_folder = pathlib.Path(sample_folder, "artic")
-            if os.path.exists(artic_folder):
-                shutil.rmtree(artic_folder)
-            artic_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
+        # set core limit variables
+        used_cores = 0
+        max_cores = (cpu_threads / 2) - 1
 
-            # check if fastq is present
-            if not sample_fastq.is_file():
-                print(f"\nCould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
-                with open(log_file, "a") as handle:
-                    handle.write(
-                        f"\nCould not find the concatenated sample fastq file: {sample_fastq}\nskipping sample")
-                continue
-            print(f"\n________________\n\nStarting processing sample: {sample_name}\n________________\n")
-            with open(log_file, "a") as handle:
-                handle.write(
-                    f"\n________________\n\nStarting processing sample: {sample_name}\n________________\n")
+        if artic:
+            all_art_sample_files = pathlib.Path(sample_folder).glob("*/art/*.fastq")
+            for sample_fastq in all_art_sample_files:
 
-            # start artic pipeline in new window
-            if artic:
+                # get folder paths again to be sure
+                sample_dir = pathlib.Path(sample_fastq).parent
+                sample_name = pathlib.Path(sample_fastq).stem
+                os.chdir(sample_dir)
+
+                # check if fastq is present
+                if not sample_fastq.is_file():
+                    print(f"\nCould not find the concatenated sample fastq file in art folder: {sample_fastq}\nskipping sample")
+                    with open(log_file, "a") as handle:
+                        handle.write(
+                            f"\nCould not find the concatenated sample fastq file in art folder: {sample_fastq}\nskipping sample")
+                    continue
+
+                # check sufficient cores
+                while used_cores == max_cores:
+                    time.sleep(5)
+                else:
+                    continue
+
+                # start artic pipeline in new window
                 print(f"\n------->Running Artic's pipeline in new window\n")
                 with open(log_file, "a") as handle:
                     handle.write(
                         f"\n------->Running Artic's pipeline in new window\n\n")
 
-                artic_cmd = f"artic minion --normalise 400 --threads {threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
+                artic_cmd = f"artic minion --normalise 400 --threads 2 --scheme-directory ~/artic-ncov2019/primer_schemes " \
                             f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
                             f"--sequencing-summary {seq_summary_file} {scheme_name} {sample_name} " \
                             f"2>&1 | tee -a {log_file}"
                 print(artic_cmd)
                 try_except_continue_on_fail(
                     f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}'")
-
+                used_cores += 1
+                # write consensus to master consensus file when last artic file made
                 last_file_made = pathlib.Path(sample_folder, sample_name + ".muscle.out.fasta")
                 while pathlib.Path.exists(last_file_made) == False:
                     time.sleep(5)
                 else:
                     time.sleep(2)
-                    all_files = os.listdir(sample_folder)
-
-                    # write consensus to master consensus file
                     artic_cons_file = pathlib.Path(sample_folder, sample_name + ".consensus.fasta")
                     artic_d = fasta_to_dct(artic_cons_file)
                     with open(all_samples_consens_seqs, 'a') as fh:
                         for name, seq in artic_d.items():
                             newname = re.sub("/ARTIC.*", "_art", name)
                             fh.write(f">{newname}\n{seq.replace('-', '')}\n")
+                    used_cores -= 1
+        if msa:
+            all_msa_sample_files = pathlib.Path(sample_folder).glob("*/msa/*.fastq")
+            for sample_fastq in all_msa_sample_files:
 
-                    for filename in all_files:
-                        if os.path.isfile(filename) and not filename.endswith('.fastq'):
-                            file = os.path.join(sample_folder, filename)
-                            shutil.move(file, artic_folder)
+                # get folder paths again to be sure
+                sample_dir = pathlib.Path(sample_fastq).parent
+                sample_name = pathlib.Path(sample_fastq).stem
+                os.chdir(sample_dir)
 
-            # start majority consensus pipeline in new window
-            if msa_cons:
+                # check if fastq is present
+                if not sample_fastq.is_file():
+                    print(f"\nCould not find the concatenated sample fastq file in msa folder: {sample_fastq}\nskipping sample")
+                    with open(log_file, "a") as handle:
+                        handle.write(
+                            f"\nCould not find the concatenated sample fastq file in msa folder: {sample_fastq}\nskipping sample")
+                    continue
 
+                # check sufficient cores
+                while used_cores == max_cores:
+                    time.sleep(5)
+                else:
+                    continue
+
+                # start majority consensus pipeline in new window
                 print(f"\n\n------->Running majority consensus pipeline in new window\n")
                 with open(log_file, "a") as handle:
                     handle.write(
@@ -349,26 +373,25 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
                 majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
                                f"{use_bwa} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
-                               f"-t {threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
-
+                               f"-t 2 -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
                 print(majority_cmd)
                 try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
-
+                used_cores += 1
                 # open(f"{sample_name}_msa_from_bam_file.fasta", "w+")
-                last_file_made_2 = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
-                while pathlib.Path.exists(last_file_made_2) == False:
-                    time.sleep(5)
-                else:
-                    if samples_run + 1 <= number_samples:
-                        print(f"\ncontinuing with sample {samples_run + 1}\n")
+                # last_file_made_2 = pathlib.Path(sample_folder, sample_name + "_msa_from_bam_file.fasta")
+                # while pathlib.Path.exists(last_file_made_2) == False:
+                #     time.sleep(5)
+                # else:
+                #     if samples_run + 1 <= number_samples:
+                #         print(f"\ncontinuing with sample {samples_run + 1}\n")
 
-                # keep threads balanced
-                number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
-                print(f'{number_png_files} png files created')
-                difference = number_png_files - old_number_png_files
-                old_number_png_files = number_png_files
-                threads = threads - 1 + difference
-                samples_run += 1
+                # keep cpu_threads balanced
+                # number_png_files = len(list(plot_folder.glob('*_sequencing_depth.png')))
+                # print(f'{number_png_files} png files created')
+                # difference = number_png_files - old_number_png_files
+                # old_number_png_files = number_png_files
+                # cpu_threads = cpu_threads - 1 + difference
+                # samples_run += 1
 
         # run sample summary as soon as all sequencing_depth.png files made
         number_pngs = len(list(plot_folder.glob('*_sequencing_depth.png')))
@@ -437,9 +460,9 @@ if __name__ == "__main__":
                         help="Generate consensus from MSA", required=False)
     parser.add_argument("-a", "--art", default=False, action="store_true",
                         help="Generate consensus with Artic pipeline", required=False)
-    parser.add_argument("-c", "--cpu_cores", type=int, default=15, choices=range(0, 16),
-                        help="The number of threads to use for bwa, nanopolish etc...", required=False)
-    parser.add_argument("-g", "--gpu_cores", type=int, default=8,
+    parser.add_argument("-c", "--cpu_threads", type=int, default=15, choices=range(0, 16),
+                        help="The number of cpu threads to use for bwa, nanopolish etc...", required=False)
+    parser.add_argument("-g", "--gpu_threads", type=int, default=8,
                         help="The number of gpu threads to use ...", required=False)
     parser.add_argument("-gb", "--gpu_buffers", type=int, default=16,
                         help="The number of gpu buffers to use for demultiplexing", required=False)
@@ -466,8 +489,8 @@ if __name__ == "__main__":
     basecall_mode = args.basecall_mode
     msa_cons = args.msa
     artic = args.art
-    cpu_cores = args.cpu_cores
-    gpu_cores = args.gpu_cores
+    cpu_threads = args.cpu_threads
+    gpu_threads = args.gpu_threads
     gpu_buffers = args.gpu_buffers
     use_gaps = args.use_gaps
     use_bwa = args.use_bwa
@@ -475,5 +498,5 @@ if __name__ == "__main__":
     real_time = args.real_time
 
     main(project_path, reference, reference_start, reference_end, min_len, max_len, min_depth, run_step,
-         run_step_only, basecall_mode, msa_cons, artic, cpu_cores, gpu_cores, gpu_buffers, use_gaps, use_bwa,
+         run_step_only, basecall_mode, msa_cons, artic, cpu_threads, gpu_threads, gpu_buffers, use_gaps, use_bwa,
          guppy_path, real_time)
