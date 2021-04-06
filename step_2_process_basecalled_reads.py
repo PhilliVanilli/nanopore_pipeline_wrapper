@@ -295,6 +295,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         used_cores = 0
         max_cores = (cpu_threads / 2) - 1
 
+
         if artic:
             all_art_sample_files = pathlib.Path(sample_folder).glob("*/art/*.fastq")
 
@@ -304,6 +305,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 sample_dir = pathlib.Path(sample_fastq).parent
                 sample_name = pathlib.Path(sample_fastq).stem
                 os.chdir(sample_dir)
+                print(f"\n________________\n\nStarting ART processing sample: {sample_name}\n________________\n")
+                with open(log_file, "a") as handle:
+                    handle.write(
+                        f"\n________________\n\nStarting ART processing sample: {sample_name}\n________________\n")
+
 
                 # check if fastq is present
                 if not sample_fastq.is_file():
@@ -318,10 +324,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                     time.sleep(5)
 
                 # start artic pipeline in new window
-                print(f"\n------->Running Artic's pipeline in new window\n")
-                with open(log_file, "a") as handle:
-                    handle.write(
-                        f"\n------->Running Artic's pipeline in new window\n\n")
 
                 artic_cmd = f"artic minion --normalise 400 --threads 2 --scheme-directory ~/artic-ncov2019/primer_schemes " \
                             f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
@@ -346,7 +348,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                             fh.write(f">{newname}\n{seq.replace('-', '')}\n")
                     used_cores -= 1
 
-        if msa:
+        if msa_cons:
             all_msa_sample_files = pathlib.Path(sample_folder).glob("*/msa/*.fastq")
             for sample_fastq in all_msa_sample_files:
 
@@ -354,6 +356,10 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 sample_dir = pathlib.Path(sample_fastq).parent
                 sample_name = pathlib.Path(sample_fastq).stem
                 os.chdir(sample_dir)
+                print(f"\n________________\n\nStarting MSA processing sample: {sample_name}\n________________\n")
+                with open(log_file, "a") as handle:
+                    handle.write(
+                        f"\n________________\n\nStarting MSA processing sample: {sample_name}\n________________\n")
 
                 # check if fastq is present
                 if not sample_fastq.is_file():
