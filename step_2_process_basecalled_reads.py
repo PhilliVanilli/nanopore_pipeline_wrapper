@@ -77,7 +77,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
          "SARS2_V1_800": pathlib.Path(primer_scheme_dir, "SARS2_800", "V1", "SARS2_800.reference.fasta"),
          "SARS2_V1_400": pathlib.Path(primer_scheme_dir, "SARS2_400", "V1", "SARS2_400.reference.fasta"),
          "DENV1_V1_400": pathlib.Path(primer_scheme_dir, "DENV1_400", "V1", "DENV1_400.reference.fasta"),
-         "DENV1_V2_400": pathlib.Path(primer_scheme_dir, "DENV1_400", "V2", "DENV1_400.reference.fasta"),
          "DENV2_V1_400": pathlib.Path(primer_scheme_dir, "DENV2_400", "V1", "DENV2_400.reference.fasta")
          }
 
@@ -439,7 +438,7 @@ if __name__ == "__main__":
     parser.add_argument("-in", "--project_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the directory containing the 'fast5' and 'fastq' folders ", required=True)
     parser.add_argument("-r", "--reference", type=str, help="The reference genome and primer scheme to use",
-                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800", "SARS2_V1_400", "DENV1_V1_400", "DENV2_V1_400", "DENV1_V2_400"], required=True)
+                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800", "SARS2_V1_400", "DENV1_V1_400", "DENV2_V1_400"], required=True)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
                         help="The start coordinate of the reference sequence for read mapping", required=False)
     parser.add_argument("-re", "--reference_end", default=False, type=int,
