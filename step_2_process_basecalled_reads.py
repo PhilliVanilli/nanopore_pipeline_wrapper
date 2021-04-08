@@ -243,8 +243,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 with open(log_file, "a") as handle:
                     handle.write("\nmissing one or more demultiplexed files for this sample\n")
                 continue
-        for fastq in demultiplexed_folder.glob('*.fastq'):
-            os.remove(str(fastq))
+
         if not rerun_step_only:
             run_step = 4
         else:
@@ -437,7 +436,7 @@ if __name__ == "__main__":
                         help="Generate consensus from MSA", required=False)
     parser.add_argument("-a", "--art", default=False, action="store_true",
                         help="Generate consensus with Artic pipeline", required=False)
-    parser.add_argument("-c", "--cpu_cores", type=int, default=15, choices=range(0, 16),
+    parser.add_argument("-c", "--cpu_cores", type=int, default=14, choices=range(0, 16),
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=8,
                         help="The number of gpu threads to use ...", required=False)
