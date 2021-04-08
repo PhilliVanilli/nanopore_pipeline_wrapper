@@ -304,7 +304,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         for file in pathlib.Path(sample_folder).glob("*/*/*.*"):
             if not str(file).endswith(".fastq"):
                 os.remove(file)
-
         if msa_cons:
             print(f"\n________________\n\nStarting MSA processing samples\n________________\n")
             with open(log_file, "a") as handle:
@@ -342,7 +341,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 print(f"\n------->Running majority consensus pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
                 with open(log_file, "a") as handle:
                     handle.write(
-                        f"\n------->Running majority consensus pipeline for sample {sample_name} in new window\n")
+                        f"\n------->Running majority consensus pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
 
                 # start majority consensus pipeline in new window
                 majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
@@ -390,7 +389,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 print(f"\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
                 with open(log_file, "a") as handle:
                     handle.write(
-                        f"\n------->Running artic pipeline for sample {sample_name} in new window\n")
+                        f"\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
 
                 # start artic pipeline in new window
                 artic_cmd = f"artic minion --normalise 400 --threads 2 --scheme-directory ~/artic-ncov2019/primer_schemes " \
@@ -518,7 +517,7 @@ if __name__ == "__main__":
                         help="Generate consensus from MSA", required=False)
     parser.add_argument("-a", "--art", default=False, action="store_true",
                         help="Generate consensus with Artic pipeline", required=False)
-    parser.add_argument("-c", "--cpu_threads", type=int, default=15, choices=range(0, 16),
+    parser.add_argument("-c", "--cpu_threads", type=int, default=16, choices=range(0, 16),
                         help="The number of cpu threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_threads", type=int, default=8,
                         help="The number of gpu threads to use ...", required=False)
