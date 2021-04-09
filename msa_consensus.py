@@ -23,7 +23,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpForm
 
 def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_scheme_bed_file, threads,
          min_depth, use_gaps, all_samples_consens_seqs):
-    print(f"mindepth = {min_depth}")
+
     # force absolute file paths
     sample_fastq = pathlib.Path(infile).absolute()
     script_folder = pathlib.Path(__file__).absolute().parent
@@ -53,6 +53,10 @@ def main(infile, plot_folder, log_file, use_bwa, chosen_ref_scheme, chosen_ref_s
 
     # make sure cwd is the sample folder, as some programs output to cwd
     os.chdir(sample_folder)
+
+    # print(f"\n------->Running majority consensus pipeline for sample {sample_name} in new window\n")
+    # with open(log_file, "a") as handle:
+    #     handle.write(f"\n\n------->Running majority consensus pipeline for sample {sample_name} in new window\n")
 
     if not use_bwa:
         # run read mapping using minimap

@@ -272,11 +272,7 @@ def main(infile, outfile, bedfile):
           f"indel in primer sequences,{bad},{round(bad/total*100, 2)}%\n"
           f"Good sequences,{good},{round(good/total*100, 2)}%\n")
 
-
-
-
-    print("\nFinished soft clipping bam file\n")
-
+    print("Finished soft clipping bam file")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trim alignments from an amplicon scheme.')

@@ -58,6 +58,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     # master_reads_file = pathlib.Path(project_path, run_name + "_all.fastq")
     time_stamp = str('{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now()))
     log_file = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file.txt")
+    log_file_final = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_final.txt")
 
     with open(log_file, "w") as handle:
         handle.write(f"# start of pipeline run for project: {run_name}\n")
@@ -267,6 +268,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     if run_step == 4:
 
+
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
@@ -299,16 +301,27 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
         max_threads = cpu_threads - 2
         used_threads = 0
+        msa_threads = 1
+        artic_threads = 3
 
         # delete pre existing files
         for file in pathlib.Path(sample_folder).glob("*/*/*.*"):
             if not str(file).endswith(".fastq"):
                 os.remove(file)
+
+        log_file_art_temp = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_art_temp.txt")
+        log_file_msa_temp = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_msa_temp.txt")
+        log_file_msa = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_msa.txt")
+        log_file_art = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_art.txt")
+
         if msa_cons:
+
             print(f"\n________________\n\nStarting MSA processing samples\n________________\n")
-            with open(log_file, "a") as handle:
+            print(f"min_depth = {min_depth}")
+            with open(log_file_msa_temp, "a") as handle:
                 handle.write(
                     f"\n________________\n\nStarting MSA processing samples\n________________\n")
+                handle.write(f"\nmin_depth = {min_depth}\n")
 
             all_msa_sample_files = pathlib.Path(sample_folder).glob("*/msa/*.fastq")
             sample_no = 0
@@ -318,13 +331,15 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 # get fastq path and name
                 sample_path = pathlib.Path(sample_fastq).parent
                 sample_name = pathlib.Path(sample_fastq).stem
+                log_file_msa_sample = pathlib.Path(project_path, f"{time_stamp}_{sample_name}_log_file_msa_sample.txt")
                 os.chdir(sample_path)
 
                 # check free threads
                 finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
                 free_threads = max_threads + finished_threads - used_threads
+                print("\nfree_threads = " + str(free_threads))
                 print('\n' + 'waiting for free threads')
-                while free_threads == 0:
+                while free_threads < msa_threads:
                     time.sleep(5)
                     finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
                     free_threads = max_threads + finished_threads - used_threads
@@ -334,28 +349,28 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 if not file_present:
                     print(
                         f"\nCould not find the concatenated sample fastq file in msa folder: {sample_fastq}\nskipping sample")
-                    with open(log_file, "a") as handle:
+                    with open(log_file_msa_sample, "a") as handle:
                         handle.write(
                             f"\nCould not find the concatenated sample fastq file in msa folder: {sample_fastq}\nskipping sample")
                     continue
                 print(f"\n------->Running majority consensus pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
-                with open(log_file, "a") as handle:
+                with open(log_file_msa_sample, "a") as handle:
                     handle.write(
-                        f"\n------->Running majority consensus pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
+                        f"\n\n------->Running majority consensus pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
 
                 # start majority consensus pipeline in new window
-                majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file} " \
+                majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file_msa_sample} " \
                                f"{use_bwa} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
-                               f"-t 1 -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
+                               f"-t {msa_threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
                 print(majority_cmd)
                 try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
-                used_threads += 1
+                used_threads += msa_threads
 
         if artic:
             print(f"\n________________\n\nStarting ART processing samples\n________________\n")
-            with open(log_file, "a") as handle:
+            with open(log_file_art_temp, "a") as handle:
                 handle.write(
-                    f"\n________________\n\nStarting ART processing samples\n________________\n")
+                    f"\n\n________________\n\nStarting ART processing samples\n________________\n\n")
 
             all_art_sample_files = pathlib.Path(sample_folder).glob("*/art/*.fastq")
             sample_no = 0
@@ -364,45 +379,47 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 # get fastq path and name
                 sample_path = pathlib.Path(sample_fastq).parent
                 sample_name = pathlib.Path(sample_fastq).stem
+                log_file_art_sample = pathlib.Path(project_path, f"{time_stamp}_{sample_name}_log_file_art_sample.txt")
                 os.chdir(sample_path)
 
                 # check free threads
                 if msa_cons:
-                    finished_threads = 2*len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))) + len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
+                    finished_threads = artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))) + len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
                 else:
-                    finished_threads = 2*len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta")))
+                    finished_threads = artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta")))
                 free_threads = max_threads + finished_threads - used_threads
+                print("\nfree_threads = " + str(free_threads))
                 print('\n' + 'waiting for free threads')
-                while free_threads < 2:
+                while free_threads < artic_threads:
                     time.sleep(5)
                     if msa_cons:
-                        finished_threads = 2 * len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))) + len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
+                        finished_threads = artic_threads * len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))) + len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
                     else:
-                        finished_threads = 2 * len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta")))
+                        finished_threads = artic_threads * len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta")))
                     free_threads = max_threads + finished_threads - used_threads
 
                 # check if fastq is present
                 file_present = list(sample_path.glob("*.fastq"))
                 if not file_present:
                     print(f"\nCould not find the concatenated sample fastq file in art folder: {sample_fastq}\nskipping sample")
-                    with open(log_file, "a") as handle:
+                    with open(log_file_art_sample, "a") as handle:
                         handle.write(
                             f"\nCould not find the concatenated sample fastq file in art folder: {sample_fastq}\nskipping sample")
                     continue
-                print(f"\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
-                with open(log_file, "a") as handle:
+                print(f"\n\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
+                with open(log_file_art_sample, "a") as handle:
                     handle.write(
                         f"\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
 
                 # start artic pipeline in new window
-                artic_cmd = f"artic minion --normalise 400 --threads 2 --scheme-directory ~/artic-ncov2019/primer_schemes " \
+                artic_cmd = f"artic minion --normalise 400 --threads {artic_threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
                             f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
                             f"--sequencing-summary {seq_summary_file} {scheme_name} {sample_name} " \
-                            f"2>&1 | tee -a {log_file}"
+                            f"2>&1 | tee -a {log_file_art_sample}"
                 print(artic_cmd)
                 try_except_continue_on_fail(
                     f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}'")
-                used_threads += 2
+                used_threads += artic_threads
 
             # write consensus to master consensus file when all artic files made
             print('\n' + 'waiting for art samples to be completed' + '\n')
@@ -419,21 +436,52 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                             newname = re.sub("/ARTIC.*", "_art", name)
                             fh.write(f">{newname}\n{seq.replace('-', '')}\n")
 
-        now = datetime.datetime.now()
-        date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
-        print(f"\nend time = {date_time}\n\n")
-
-
-        # align and rename all samples consens seqs
+        # construct log file and align all samples consens seqs
         if msa_cons:
             all_last_files = list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta"))
             print('\n' + 'waiting for msa samples to be completed' + '\n')
             while len(all_last_files) < number_samples:
                 time.sleep(5)
                 all_last_files = list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta"))
+
+        # concat all log files
+        os.chdir(project_path)
+
+        loglist_msa = []
+        for path in pathlib.Path(project_path).glob("*_log_file_msa_sample.txt"):
+            loglist_msa.append(str(path))
+        sep = " "
+        string_msa = sep.join(loglist_msa)
+        cat_cmd = f"cat {str(log_file_msa_temp)} {string_msa} > {log_file_msa}"
+        print(cat_cmd)
+        try_except_continue_on_fail(cat_cmd)
+
+        loglist_art = []
+        for path in pathlib.Path(project_path).glob("*_log_file_art_sample.txt"):
+            loglist_art.append(str(path))
+        sep = " "
+        string_art = sep.join(loglist_art)
+        cat_cmd = f"cat {str(log_file_art_temp)} {string_art} > {log_file_art}"
+        print(cat_cmd)
+        try_except_continue_on_fail(cat_cmd)
+
+        cat_cmd = f"cat {str(log_file)} {str(log_file_msa)} {str(log_file_art)} > {log_file_final}"
+        print(cat_cmd)
+        try_except_continue_on_fail(cat_cmd)
+
+        for path in list(pathlib.Path(project_path).glob("*_log_file_msa_sample.txt")):
+            os.remove(path)
+        for path in list(pathlib.Path(project_path).glob("*_log_file_art_sample.txt")):
+            os.remove(path)
+        os.remove(log_file_msa_temp)
+        os.remove(log_file_art_temp)
+        os.remove(log_file_art)
+        os.remove(log_file_msa)
+        os.remove(log_file)
+
         print("aligning consensus sequence from all samples\n")
         tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
-        mafft_cmd = f"mafft --globalpair --thread -1 --maxiterate 1000 {str(all_samples_consens_seqs)} > {str(tmp_file)}"
+        mafft_cmd = f"mafft --globalpair --maxiterate 1000 {str(all_samples_consens_seqs)} > {str(tmp_file)}"
         print(mafft_cmd)
         run = try_except_continue_on_fail(mafft_cmd)
         if not run:
@@ -472,11 +520,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     now = datetime.datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
     print(f"\nend time = {date_time}\n\n")
-    with open(log_file, "a") as handle:
+    with open(log_file_final, "a") as handle:
         handle.write(f"\nend time = {date_time}\n\n")
 
     print("sample processing completed\n")
-    with open(log_file, "a") as handle:
+    with open(log_file_final, "a") as handle:
         handle.write(f"\nsample processing completed\n\n")
 
     # compress fast5 files
@@ -484,7 +532,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     tarcmd = f"tar cf - {fast5_dir} | pigz -7 -p 16  > {targzpath}"
     try_except_exit_on_fail(tarcmd)
     print(tarcmd)
-    with open(log_file, "a") as handle:
+    with open(log_file_final, "a") as handle:
         handle.write(f"\n{tarcmd}\n\n")
 
 if __name__ == "__main__":
