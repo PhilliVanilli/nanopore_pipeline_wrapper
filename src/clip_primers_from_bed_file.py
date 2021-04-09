@@ -164,7 +164,6 @@ def main(infile, outfile, bedfile):
     read_prime_pair_lookup = pathlib.Path(outfile.parent, "read_primer_pair_lookup.json")
     runfolder = pathlib.Path(outfile.parent.parent.parent)
     runname = runfolder.parts[-1]
-    print(runfolder, runname)
     mappingfile = pathlib.Path(runfolder, runname + '_mapping.csv')
 
     # set counters
@@ -267,11 +266,14 @@ def main(infile, outfile, bedfile):
 
     with open(mappingfile,'a') as fh:
         fh.write(f"\n{outfile.stem}\n"
-            f"Total,{total},100%\nUnmapped,{unmapped},{round(unmapped/total*100, 2)}%\n"
+          f"Total,{total},100%\nUnmapped,{unmapped},{round(unmapped/total*100, 2)}%\n"
           f"Supplementary,{suppl},{round(suppl/total*100, 2)}%\n"
           f"Mismatched primers,{missmatched},{round(missmatched/total*100, 2)}%\n"
           f"indel in primer sequences,{bad},{round(bad/total*100, 2)}%\n"
           f"Good sequences,{good},{round(good/total*100, 2)}%\n")
+
+
+
 
     print("\nFinished soft clipping bam file\n")
 

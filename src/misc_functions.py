@@ -51,7 +51,7 @@ def fasta_to_dct(file_name):
     my_gen = py3_fasta_iter(file_name)
     for i, (k, v) in enumerate(my_gen):
         # resolve for duplicate sequence headers
-        new_key = k.replace(" ", "_") + "_" + str(i).zfill(4)
+        new_key = k.replace(" ", "_") + "_" + str(i).zfill(6)
         dct[new_key] = v.upper()
 
     return dct
