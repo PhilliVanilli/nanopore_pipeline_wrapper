@@ -52,7 +52,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     # sequencing_summary_file = pathlib.Path(fastq_dir, "sequencing_summary.txt")
     sample_names = pathlib.Path(project_path, "sample_names.csv")
     if not sample_names:
-        sys.exit("Could not find sample_names.csv in porject folder")
+        sys.exit("Could not find sample_names.csv in project folder")
     demultiplexed_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
     print(sample_folder)
@@ -436,7 +436,7 @@ if __name__ == "__main__":
                         help="Generate consensus from MSA", required=False)
     parser.add_argument("-a", "--art", default=False, action="store_true",
                         help="Generate consensus with Artic pipeline", required=False)
-    parser.add_argument("-c", "--cpu_cores", type=int, default=14, choices=range(0, 16),
+    parser.add_argument("-c", "--cpu_cores", type=int, default=15, choices=range(0, 16),
                         help="The number of threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_cores", type=int, default=8,
                         help="The number of gpu threads to use ...", required=False)
