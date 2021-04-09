@@ -299,7 +299,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         with open(p, 'w') as fh:
             fh.close()
 
-        max_threads = cpu_threads - 2
+        max_threads = cpu_threads
         used_threads = 0
         msa_threads = 1
         artic_threads = 3
@@ -574,7 +574,7 @@ if __name__ == "__main__":
                         help="The number of cpu threads to use for bwa, nanopolish etc...", required=False)
     parser.add_argument("-g", "--gpu_threads", type=int, default=8,
                         help="The number of gpu threads to use ...", required=False)
-    parser.add_argument("-gb", "--gpu_buffers", type=int, default=16,
+    parser.add_argument("-gb", "--gpu_buffers", type=int, default=15,
                         help="The number of gpu buffers to use for demultiplexing", required=False)
     parser.add_argument("--use_gaps", default='', action="store_const", const='-ug',
                         help="use gap characters when making the consensus sequences", required=False)
