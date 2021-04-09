@@ -409,7 +409,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 print(f"\n\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
                 with open(log_file_art_sample, "a") as handle:
                     handle.write(
-                        f"\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
+                        f"\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n\n")
 
                 # start artic pipeline in new window
                 artic_cmd = f"artic minion --normalise 400 --threads {artic_threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
@@ -453,7 +453,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         sep = " "
         string_msa = sep.join(loglist_msa)
         cat_cmd = f"cat {str(log_file_msa_temp)} {string_msa} > {log_file_msa}"
-        print(cat_cmd)
         try_except_continue_on_fail(cat_cmd)
 
         loglist_art = []
@@ -462,11 +461,9 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         sep = " "
         string_art = sep.join(loglist_art)
         cat_cmd = f"cat {str(log_file_art_temp)} {string_art} > {log_file_art}"
-        print(cat_cmd)
         try_except_continue_on_fail(cat_cmd)
 
         cat_cmd = f"cat {str(log_file)} {str(log_file_msa)} {str(log_file_art)} > {log_file_final}"
-        print(cat_cmd)
         try_except_continue_on_fail(cat_cmd)
 
         for path in list(pathlib.Path(project_path).glob("*_log_file_msa_sample.txt")):
@@ -481,7 +478,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
         print("aligning consensus sequence from all samples\n")
         tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
-        mafft_cmd = f"mafft --globalpair --maxiterate 1000 {str(all_samples_consens_seqs)} > {str(tmp_file)}"
+        mafft_cmd = f"mafft --thread -1 --auto {str(all_samples_consens_seqs)} > {str(tmp_file)}"
         print(mafft_cmd)
         run = try_except_continue_on_fail(mafft_cmd)
         if not run:
