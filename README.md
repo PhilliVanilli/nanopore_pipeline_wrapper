@@ -1,4 +1,4 @@
-# nanopore_pipeline_wrapper
+# TARGETSEQ
 a wrapper for a nanopore pipeline based on the artic-ebov pipeline
 
 ## Requirements
