@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/targetseq.iml" filepath="$PROJECT_DIR$/.idea/targetseq.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/targetseq tryout.iml" filepath="$PROJECT_DIR$/.idea/targetseq tryout.iml" />
     </modules>
   </component>
 </project>
