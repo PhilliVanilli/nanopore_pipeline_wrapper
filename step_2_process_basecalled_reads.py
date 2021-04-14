@@ -359,7 +359,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                         f"\n\n------->Running majority consensus pipeline for {sample_no} st/nd sample {sample_name} in new window\n")
 
                 # start majority consensus pipeline in new window
-                majority_cmd = f"python ~/nanopore_pipeline_wrapper/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file_msa_sample} " \
+                majority_cmd = f"python ~/targetseq/msa_consensus.py -in {sample_fastq} -pf {plot_folder} -lf {log_file_msa_sample} " \
                                f"{use_bwa} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
                                f"-t {msa_threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
                 print(majority_cmd)
