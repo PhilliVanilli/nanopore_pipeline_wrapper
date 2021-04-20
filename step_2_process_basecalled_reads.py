@@ -268,18 +268,13 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     if run_step == 4:
 
-
         print("Running variant calling on samples")
         with open(log_file, "a") as handle:
             handle.write(f"\nRunning variant calling on samples\n")
 
         # get number of samples
-        if artic and msa_cons:
-            number_samples = (len(list(sample_folder.glob('*/*/*.fastq'))))/2
-            print("number of samples=" + str(number_samples))
-        else:
-            number_samples = (len(list(sample_folder.glob('*/*/*.fastq'))))
-            print("number of samples=" + str(number_samples))
+        number_samples = len(next(os.walk(sample_folder))[1])
+        print(f"\nNumber of samples = {str(number_samples)}\n")
 
         # make bwa index if needed
         if use_bwa:
@@ -447,33 +442,34 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         # concat all log files
         os.chdir(project_path)
 
-        loglist_msa = []
-        for path in pathlib.Path(project_path).glob("*_log_file_msa_sample.txt"):
-            loglist_msa.append(str(path))
-        sep = " "
-        string_msa = sep.join(loglist_msa)
-        cat_cmd = f"cat {str(log_file_msa_temp)} {string_msa} > {log_file_msa}"
-        try_except_continue_on_fail(cat_cmd)
+        if msa_cons:
+            loglist_msa = []
+            for path in pathlib.Path(project_path).glob("*_log_file_msa_sample.txt"):
+                loglist_msa.append(str(path))
+            sep = " "
+            string_msa = sep.join(loglist_msa)
+            cat_cmd = f"cat {str(log_file_msa_temp)} {string_msa} > {log_file_msa}"
+            try_except_continue_on_fail(cat_cmd)
+            for path in list(pathlib.Path(project_path).glob("*_log_file_msa_sample.txt")):
+                os.remove(path)
+            os.remove(log_file_msa_temp)
+            os.remove(log_file_msa)
 
-        loglist_art = []
-        for path in pathlib.Path(project_path).glob("*_log_file_art_sample.txt"):
-            loglist_art.append(str(path))
-        sep = " "
-        string_art = sep.join(loglist_art)
-        cat_cmd = f"cat {str(log_file_art_temp)} {string_art} > {log_file_art}"
-        try_except_continue_on_fail(cat_cmd)
+        if artic:
+            loglist_art = []
+            for path in pathlib.Path(project_path).glob("*_log_file_art_sample.txt"):
+                loglist_art.append(str(path))
+            sep = " "
+            string_art = sep.join(loglist_art)
+            cat_cmd = f"cat {str(log_file_art_temp)} {string_art} > {log_file_art}"
+            try_except_continue_on_fail(cat_cmd)
+            for path in list(pathlib.Path(project_path).glob("*_log_file_art_sample.txt")):
+                os.remove(path)
+            os.remove(log_file_art_temp)
+            os.remove(log_file_art)
 
         cat_cmd = f"cat {str(log_file)} {str(log_file_msa)} {str(log_file_art)} > {log_file_final}"
         try_except_continue_on_fail(cat_cmd)
-
-        for path in list(pathlib.Path(project_path).glob("*_log_file_msa_sample.txt")):
-            os.remove(path)
-        for path in list(pathlib.Path(project_path).glob("*_log_file_art_sample.txt")):
-            os.remove(path)
-        os.remove(log_file_msa_temp)
-        os.remove(log_file_art_temp)
-        os.remove(log_file_art)
-        os.remove(log_file_msa)
         os.remove(log_file)
 
         print("aligning consensus sequence from all samples\n")
