@@ -455,6 +455,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             os.remove(log_file_msa_temp)
             os.remove(log_file_msa)
 
+
         if artic:
             loglist_art = []
             for path in pathlib.Path(project_path).glob("*_log_file_art_sample.txt"):
@@ -521,9 +522,15 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         handle.write(f"\nsample processing completed\n\n")
 
     # compress fast5 files
-    targzpath = pathlib.Path(project_path.parent, run_name + ".tar.gz")
-    tarcmd = f"tar cf - {fast5_dir} | pigz -7 -p 16  > {targzpath}"
+    os.chdir(project_path)
+    targzpath = pathlib.Path(project_path.parent, run_name + ".tar")
+    fast5_dir_name = fast5_dir.parts[-1]
+    seq_summary_file_name = pathlib.Path(seq_summary_file).name
+    tarcmd = f"tar -cf {targzpath} {fast5_dir_name} {seq_summary_file_name}"
+    print(tarcmd)
     try_except_exit_on_fail(tarcmd)
+    zipcmd = f"pigz -7 -p 16 {targzpath}"
+    try_except_exit_on_fail(zipcmd)
     print(tarcmd)
     with open(log_file_final, "a") as handle:
         handle.write(f"\n{tarcmd}\n\n")
