@@ -392,6 +392,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     # compress fast5 files
     os.chdir(project_path)
+    seq_summary_file=""
     for file in project_path.glob('sequencing_summary*.txt'):
         seq_summary_file = file
     targzpath = pathlib.Path(project_path.parent, run_name + ".tar")
