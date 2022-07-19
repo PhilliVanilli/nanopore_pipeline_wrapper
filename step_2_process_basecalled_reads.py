@@ -79,6 +79,8 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
          "ZikaAsian_V1_400": pathlib.Path(primer_scheme_dir, "ZikaAsian400", "V1", "ZikaAsian400.reference.fasta"),
          "SARS2_V1_800": pathlib.Path(primer_scheme_dir, "SARS2_800", "V1", "SARS2_800.reference.fasta"),
          "SARS2_V1_400": pathlib.Path(primer_scheme_dir, "SARS2_400", "V1", "SARS2_400.reference.fasta"),
+         "RSVA_V1_3000": pathlib.Path(primer_scheme_dir, "RSVA_3000", "V1", "RSVA_3000.reference.fasta"),
+         "RSVB_V1_3000": pathlib.Path(primer_scheme_dir, "RSVB_3000", "V1", "RSVB_3000.reference.fasta"),
          "DENV1_V1_400": pathlib.Path(primer_scheme_dir, "DENV1_400", "V1", "DENV1_400.reference.fasta"),
          "DENV2_V1_400": pathlib.Path(primer_scheme_dir, "DENV2_400", "V1", "DENV2_400.reference.fasta")
          }
@@ -251,15 +253,21 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 if os.path.exists(msa_folder):
                     shutil.rmtree(msa_folder)
                 msa_folder.mkdir(mode=0o777, parents=True, exist_ok=True)
-                cat_outfile = pathlib.Path(sample_dir, f"msa/{sample_name}.fastq")
-                cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
-                print(cat_cmd)
-                run = try_except_continue_on_fail(cat_cmd)
-                if not run:
-                    print("missing one or more demultiplexed files for this sample")
-                    with open(log_file, "a") as handle:
-                        handle.write("\nmissing one or more demultiplexed files for this sample\n")
-                    continue
+                if artic:
+                    all_art_sample_files = pathlib.Path(sample_folder).glob("*/art/*.fastq")
+                    for filepath in all_art_sample_files:
+                        destinationpath = pathlib.Path(str(filepath).replace('art','msa'))
+                        shutil.copy(filepath, destinationpath)
+                else:
+                    cat_outfile = pathlib.Path(sample_dir, f"msa/{sample_name}.fastq")
+                    cat_cmd = f"cat {str(barcode_1_file)} {str(barcode_2_file)} > {cat_outfile}"
+                    print(cat_cmd)
+                    run = try_except_continue_on_fail(cat_cmd)
+                    if not run:
+                        print("missing one or more demultiplexed files for this sample")
+                        with open(log_file, "a") as handle:
+                            handle.write("\nmissing one or more demultiplexed files for this sample\n")
+                        continue
 
         if not rerun_step_only:
             run_step = 4
@@ -527,7 +535,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
     fast5_dir_name = fast5_dir.parts[-1]
     seq_summary_file_name = pathlib.Path(seq_summary_file).name
     tarcmd = f"tar -cf {targzpath} {fast5_dir_name} {seq_summary_file_name}"
-    print(tarcmd)
     try_except_exit_on_fail(tarcmd)
     zipcmd = f"pigz -7 -p 16 {targzpath}"
     try_except_exit_on_fail(zipcmd)
@@ -542,7 +549,7 @@ if __name__ == "__main__":
     parser.add_argument("-in", "--project_path", default=argparse.SUPPRESS, type=str,
                         help="The path to the directory containing the 'fast5' and 'fastq' folders ", required=True)
     parser.add_argument("-r", "--reference", type=str, help="The reference genome and primer scheme to use",
-                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800", "SARS2_V1_400", "DENV1_V1_400", "DENV2_V1_400"], required=True)
+                        choices=["ChikAsian_V1_400", "ChikECSA_V1_800", "ZikaAsian_V1_400", "SARS2_V1_800", "SARS2_V1_400", "RSVA_V1_3000", "RSVB_V1_3000", "DENV1_V1_400", "DENV2_V1_400"], required=True)
     parser.add_argument("-rs", "--reference_start", default=1, type=int,
                         help="The start coordinate of the reference sequence for read mapping", required=False)
     parser.add_argument("-re", "--reference_end", default=False, type=int,
