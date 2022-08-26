@@ -15,6 +15,7 @@ from src.misc_functions import filter_length
 from src.misc_functions import fasta_to_dct
 from basecall_guppy import main as gupppy_basecall
 from demultiplex_guppy import main as guppy_demultiplex
+from datetime import date
 
 
 __author__ = 'Colin Anthony & Philippe Selhorst'
@@ -304,12 +305,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
         max_threads = cpu_threads
         used_threads = 0
-        msa_threads = 1
-        artic_threads = 3
-
+        msa_threads = 2
+        artic_threads = 2
         # delete pre existing files
         for file in pathlib.Path(sample_folder).glob("*/*/*.*"):
-            if not str(file).endswith(".fastq"):
+            if not str(file).endswith(".fastq") or str(file).startswith(str(date.today().year)):
                 os.remove(file)
 
         log_file_art_temp = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_art_temp.txt")
@@ -338,13 +338,13 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 os.chdir(sample_path)
 
                 # check free threads
-                finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
+                finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))
                 free_threads = max_threads + finished_threads - used_threads
                 print("\nfree_threads = " + str(free_threads))
                 print('\n' + 'waiting for free threads')
                 while free_threads < msa_threads:
                     time.sleep(5)
-                    finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
+                    finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))
                     free_threads = max_threads + finished_threads - used_threads
 
                 # check if fastq is present
@@ -366,10 +366,9 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                                f"{use_bwa} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
                                f"-t {msa_threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
                 print(majority_cmd)
-                try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
+                try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd} && touch finished.txt'")
                 used_threads += msa_threads
 
-        used_threads = 0
         if artic:
             print(f"\n________________\n\nStarting ART processing samples\n________________\n")
             with open(log_file_art_temp, "a") as handle:
@@ -387,19 +386,13 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 os.chdir(sample_path)
 
                 # check free threads
-                if msa_cons:
-                    finished_threads = artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))) + len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
-                else:
-                    finished_threads = artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta")))
+                finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))+ artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/finished.txt")))
                 free_threads = max_threads + finished_threads - used_threads
                 print("\nfree_threads = " + str(free_threads))
                 print('\n' + 'waiting for free threads')
                 while free_threads < artic_threads:
                     time.sleep(5)
-                    if msa_cons:
-                        finished_threads = artic_threads * len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))) + len(list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta")))
-                    else:
-                        finished_threads = artic_threads * len(list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta")))
+                    finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))+ artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/finished.txt")))
                     free_threads = max_threads + finished_threads - used_threads
 
                 # check if fastq is present
@@ -422,15 +415,15 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                             f"2>&1 | tee -a {log_file_art_sample}"
                 print(artic_cmd)
                 try_except_continue_on_fail(
-                    f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd}'")
+                    f"gnome-terminal -- /bin/sh -c 'conda run -n artic-ncov2019 {artic_cmd} && touch finished.txt'")
                 used_threads += artic_threads
 
             # write consensus to master consensus file when all artic files made
             print('\n' + 'waiting for art samples to be completed' + '\n')
-            all_last_files = list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))
+            all_last_files = list(pathlib.Path(sample_folder).glob("*/art/finished.txt"))
             while len(all_last_files) < number_samples:
                 time.sleep(5)
-                all_last_files = list(pathlib.Path(sample_folder).glob("*/art/*.muscle.out.fasta"))
+                all_last_files = list(pathlib.Path(sample_folder).glob("*/art/finished.txt"))
             else:
                 all_cons_files = list(pathlib.Path(sample_folder).glob("*/art/*.consensus.fasta"))
                 for cons_file in all_cons_files:
@@ -442,11 +435,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
         # construct log file and align all samples consens seqs
         if msa_cons:
-            all_last_files = list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta"))
+            all_last_files = list(pathlib.Path(sample_folder).glob("*/msa/finished.txt"))
             print('\n' + 'waiting for msa samples to be completed' + '\n')
             while len(all_last_files) < number_samples:
                 time.sleep(5)
-                all_last_files = list(pathlib.Path(sample_folder).glob("*/msa/*_msa_consensus.fasta"))
+                all_last_files = list(pathlib.Path(sample_folder).glob("*/msa/finished.txt"))
 
         # concat all log files
         os.chdir(project_path)
@@ -462,7 +455,6 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             for path in list(pathlib.Path(project_path).glob("*_log_file_msa_sample.txt")):
                 os.remove(path)
             os.remove(log_file_msa_temp)
-            os.remove(log_file_msa)
 
 
         if artic:
@@ -476,11 +468,14 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
             for path in list(pathlib.Path(project_path).glob("*_log_file_art_sample.txt")):
                 os.remove(path)
             os.remove(log_file_art_temp)
-            os.remove(log_file_art)
 
         cat_cmd = f"cat {str(log_file)} {str(log_file_msa)} {str(log_file_art)} > {log_file_final}"
         try_except_continue_on_fail(cat_cmd)
         os.remove(log_file)
+        if artic:
+            os.remove(log_file_msa)
+        if msa_cons:
+            os.remove(log_file_art)
 
         print("aligning consensus sequence from all samples\n")
         tmp_file = pathlib.Path(project_path, "temp_aligned_file.fasta")
