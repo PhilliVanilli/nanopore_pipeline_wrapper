@@ -309,7 +309,10 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         artic_threads = 2
         # delete pre existing files
         for file in pathlib.Path(sample_folder).glob("*/*/*.*"):
-            if not str(file).endswith(".fastq") or str(file).startswith(str(date.today().year)):
+            if not str(file).endswith(".fastq"):
+                os.remove(file)
+        for file in pathlib.Path(project_path).glob("*.txt"):
+            if str(file).startswith(str(date.today().year)):
                 os.remove(file)
 
         log_file_art_temp = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_art_temp.txt")
