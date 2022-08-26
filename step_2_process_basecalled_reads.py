@@ -369,6 +369,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd}'")
                 used_threads += msa_threads
 
+        used_threads = 0
         if artic:
             print(f"\n________________\n\nStarting ART processing samples\n________________\n")
             with open(log_file_art_temp, "a") as handle:
