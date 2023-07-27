@@ -15,7 +15,6 @@ from src.misc_functions import filter_length
 from src.misc_functions import fasta_to_dct
 from basecall_guppy import main as gupppy_basecall
 from demultiplex_guppy import main as guppy_demultiplex
-from datetime import date
 
 
 __author__ = 'Colin Anthony & Philippe Selhorst'
@@ -50,7 +49,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
     sample_names = pathlib.Path(project_path, "sample_names.csv")
     if not sample_names:
-        sys.exit("Could not find sample_names.csv in porject folder")
+        sys.exit("Could not find sample_names.csv in project folder")
     demultiplexed_folder = pathlib.Path(project_path, "demultiplexed")
     sample_folder = pathlib.Path(project_path, "samples")
 
@@ -305,14 +304,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
 
         max_threads = cpu_threads
         used_threads = 0
-        msa_threads = 2
+        msa_threads = 1
         artic_threads = 2
         # delete pre existing files
         for file in pathlib.Path(sample_folder).glob("*/*/*.*"):
             if not str(file).endswith(".fastq"):
-                os.remove(file)
-        for file in pathlib.Path(project_path).glob("*.txt"):
-            if str(file).startswith(str(date.today().year)):
                 os.remove(file)
 
         log_file_art_temp = pathlib.Path(project_path, f"{time_stamp}_{run_name}_log_file_art_temp.txt")
@@ -341,13 +337,13 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 os.chdir(sample_path)
 
                 # check free threads
-                finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))
+                finished_threads = msa_threads*len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))
                 free_threads = max_threads + finished_threads - used_threads
                 print("\nfree_threads = " + str(free_threads))
                 print('\n' + 'waiting for free threads')
                 while free_threads < msa_threads:
                     time.sleep(5)
-                    finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))
+                    finished_threads = msa_threads*len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))
                     free_threads = max_threads + finished_threads - used_threads
 
                 # check if fastq is present
@@ -389,13 +385,13 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 os.chdir(sample_path)
 
                 # check free threads
-                finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))+ artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/finished.txt")))
+                finished_threads = msa_threads*len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))+ artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/finished.txt")))
                 free_threads = max_threads + finished_threads - used_threads
                 print("\nfree_threads = " + str(free_threads))
                 print('\n' + 'waiting for free threads')
                 while free_threads < artic_threads:
                     time.sleep(5)
-                    finished_threads = len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))+ artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/finished.txt")))
+                    finished_threads = msa_threads*len(list(pathlib.Path(sample_folder).glob("*/msa/finished.txt")))+ artic_threads*len(list(pathlib.Path(sample_folder).glob("*/art/finished.txt")))
                     free_threads = max_threads + finished_threads - used_threads
 
                 # check if fastq is present
@@ -412,7 +408,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                         f"\n------->Running artic pipeline for {sample_no} st/nd sample {sample_name} in new window\n\n")
 
                 # start artic pipeline in new window
-                artic_cmd = f"artic minion --normalise 400 --threads {artic_threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
+                artic_cmd = f"artic minion --normalise 500 --threads {artic_threads} --scheme-directory ~/artic-ncov2019/primer_schemes " \
                             f"--read-file {sample_fastq} --fast5-directory {fast5_dir} " \
                             f"--sequencing-summary {seq_summary_file} {scheme_name} {sample_name} " \
                             f"2>&1 | tee -a {log_file_art_sample}"
@@ -475,9 +471,9 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
         cat_cmd = f"cat {str(log_file)} {str(log_file_msa)} {str(log_file_art)} > {log_file_final}"
         try_except_continue_on_fail(cat_cmd)
         os.remove(log_file)
-        if artic:
-            os.remove(log_file_msa)
         if msa_cons:
+            os.remove(log_file_msa)
+        if artic:
             os.remove(log_file_art)
 
         print("aligning consensus sequence from all samples\n")
