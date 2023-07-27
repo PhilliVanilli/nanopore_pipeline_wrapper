@@ -1,4 +1,4 @@
-name: nanop
+name: target
 channels:
   - bioconda
   - anaconda
