@@ -1,6 +1,0 @@
-[submodule "jvarkit"]
-	path = jvarkit
-	url = https://github.com/ColinAnthony/jvarkit.git
-[submodule "Porechop"]
-	path = Porechop
-	url = https://github.com/ColinAnthony/Porechop.git
