@@ -365,7 +365,7 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                                f"{use_bwa} -rs {chosen_ref_scheme} -bf {chosen_ref_scheme_bed_file} " \
                                f"-t {msa_threads} -d {min_depth} {use_gaps} -ac {all_samples_consens_seqs}"
                 print(majority_cmd)
-                try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n nanop {majority_cmd} && touch finished.txt'")
+                try_except_continue_on_fail(f"gnome-terminal -- /bin/sh -c 'conda run -n target {majority_cmd} && touch finished.txt'")
                 used_threads += msa_threads
 
         if artic:
@@ -513,6 +513,11 @@ def main(project_path, reference, ref_start, ref_end, min_len, max_len, min_dept
                 percent_coverage = round((seq_coverage / ref_length) * 100, 2)
                 fh.write(f"{v_name},{percent_coverage},{mean_depth}\n")
 
+    # run nanoplot
+    os.chdir(sample_folder)
+    nanoplotcmd= "for file in ./*/art/*.fastq;do folder=${file/.fastq/_nanoplot};nfolder=${folder/\/*\///}; NanoPlot --fastq $file -o ../nanoplot/$nfolder --tsv_stats;done"
+    try_except_exit_on_fail(nanoplotcmd)
+
     # print end time
     now = datetime.datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -569,8 +574,8 @@ if __name__ == "__main__":
     parser.add_argument("--run_step_only", default=False, action="store_true",
                         help="Only run the step specified in 'run_step'", required=False)
     parser.add_argument("-b", "--basecall_mode", default=1, choices=[0, 1], type=int,
-                        help="0 = basecall in fast mode\n"
-                             "1 = basecall in high accuracy mode\n", required=False)
+                        help="0 = basecall in r10.4.1 kit14 mode\n"
+                             "1 = basecall in r9.4.1 mode\n", required=False)
     parser.add_argument("-m", "--msa", default=False, action="store_true",
                         help="Generate consensus from MSA", required=False)
     parser.add_argument("-a", "--art", default=False, action="store_true",
